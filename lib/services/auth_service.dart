@@ -22,4 +22,8 @@ class AuthService {
       return 'Unexpected error'; // Fallback error
     }
   }
+
+  static Future<void> logout() async {
+    await _auth.signOut();
+  }
 }

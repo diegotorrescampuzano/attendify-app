@@ -49,6 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // If login succeeded (no error), navigate to the home screen
     if (result == null) {
+      print("Login successful, navigating to Home...");
       Navigator.pushReplacementNamed(context, '/home');
     }
   }
@@ -57,40 +58,93 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')), // Top bar with title
-      body: Padding(
-        padding: const EdgeInsets.all(20), // Add padding around form
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
-          children: [
-            // If there's an error, show it as red text
-            if (_error != null) ...[
-              Text(
-                _error!,
-                style: const TextStyle(color: Colors.red),
+      appBar: AppBar(title: const Text('Inicio de sesión')), // Top bar with title
+      body: SingleChildScrollView( // To prevent overflow on small screens
+        child: Padding(
+          padding: const EdgeInsets.all(20), // Add padding around form
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
+            children: [
+              // Attendify logo at the top
+              Image.asset(
+                'assets/images/attendify_logo.png',
+                height: 120,
               ),
-              const SizedBox(height: 10), // Add spacing after error
+              const SizedBox(height: 20),
+
+              // Friendly welcome text for teachers
+              const Text(
+                'Bienvenido a Attendify',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF53a09d), // Primary app color
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'La app diseñada para que los docentes realicen la asistencia de forma fácil y rápida.',
+                style: TextStyle(fontSize: 16, color: Colors.black87),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 30),
+
+              // If there's an error, show it as red text
+              if (_error != null) ...[
+                Text(
+                  _error!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+                const SizedBox(height: 10), // Add spacing after error
+              ],
+              // Email input field
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Correo electrónico',
+                  prefixIcon: Icon(Icons.email),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Password input field (obscureText hides characters)
+              TextField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Contraseña',
+                  prefixIcon: Icon(Icons.lock),
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 20), // Space before button
+              // Show loading spinner or login button depending on state
+              _loading
+                  ? const CircularProgressIndicator()
+                  : SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _login, // Call _login when tapped
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: const Color(0xFF53a09d), // Primary app color
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Iniciar sesión',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Color(0xFFF3E9DC), // Segundo color corporativo claro para texto
+                    ),
+                  ),
+                ),
+              ),
             ],
-            // Email input field
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            // Password input field (obscureText hides characters)
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20), // Space before button
-            // Show loading spinner or login button depending on state
-            _loading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-              onPressed: _login, // Call _login when tapped
-              child: const Text('Login'),
-            ),
-          ],
+          ),
         ),
       ),
     );

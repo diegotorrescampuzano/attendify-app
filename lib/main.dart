@@ -10,6 +10,10 @@ import 'firebase_options.dart';
 // Import the LoginScreen widget from our screens folder
 import 'screens/login_screen.dart';
 
+import 'screens/home_screen.dart';
+
+import 'screens/profile_screen.dart';
+
 // The entry point of the application — must be `main()` in Dart
 void main() async {
   // Ensures that Flutter is fully initialized before we use platform channels or Firebase
@@ -30,14 +34,15 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Attendify', // Name of the app shown in Android/iOS task switcher
+      title: 'Attendify -',
       theme: ThemeData(
-        primarySwatch: Colors.blue, // Set a blue color theme
+        primarySwatch: Colors.blue,
       ),
-      home: const LoginScreen(), // This is the first screen the user sees
+      initialRoute: '/', // Start with LoginScreen
       routes: {
-        // Define app routes for navigation
-        '/home': (_) => const Placeholder(), // Replace this with your real HomeScreen widget
+        '/': (_) => const LoginScreen(),       // Default route (Login)
+        '/home': (_) => const HomeScreen(),    // Home after login
+        '/profile': (_) => ProfileScreen(),
       },
     );
   }
