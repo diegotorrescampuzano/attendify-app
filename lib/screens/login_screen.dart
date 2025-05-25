@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 // Import our custom authentication logic
 import '../services/auth_service.dart';
 
+// Import FirestoreService to fetch user data after login
+import '../services/firestore_service.dart';
+
 // The login screen is a StatefulWidget because it has dynamic behavior (loading, error messages, etc.)
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key}); // Constructor with optional key
@@ -49,7 +52,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // If login succeeded (no error), navigate to the home screen
     if (result == null) {
-      print("Login successful, navigating to Home...");
+      print("Login successful, fetching user profile...");
+
+      // 👇 Aquí cargamos los datos del usuario desde Firestore
+      final userData = await FirestoreService.getUserProfile();
+
+      // Puedes imprimir el refId para depuración
+      print("Usuario autenticado con refId: ${userData?['refId']}");
+
       Navigator.pushReplacementNamed(context, '/home');
     }
   }
