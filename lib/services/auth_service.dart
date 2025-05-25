@@ -26,4 +26,9 @@ class AuthService {
   static Future<void> logout() async {
     await _auth.signOut();
   }
+
+  /// Returns the current user ID (UID) if signed in
+  static String? getCurrentUserId() {
+    return _auth.currentUser?.uid;
+  }
 }
