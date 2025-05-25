@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/campus_service.dart'; // Service to fetch campuses for the teacher
 
+
 /// Screen to display a list of campuses assigned to the logged-in teacher
 class CampusScreen extends StatefulWidget {
   const CampusScreen({super.key});
@@ -40,6 +41,13 @@ class _CampusScreenState extends State<CampusScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userData = AuthService.currentUserData;
+    print('userData from Campus Screen: $userData');
+    final refId = userData?['refId'];
+
+    // Imprimir refId en consola para depuración
+    print('refId for usuario: $refId');
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0E3),
       appBar: AppBar(
