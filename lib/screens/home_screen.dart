@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../widgets/app_drawer.dart'; // Import the drawer widget
+import '../screens/campus_screen.dart'; // Import CampusScreen
+import '../screens/reports_screen.dart'; // Import ReportsScreen
+import '../screens/profile_screen.dart'; // Import ProfileScreen
+import '../widgets/bottom_navbar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,11 +47,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     ),
 
-    // Páginas secundarias por ahora
-    const Center(child: Text('Asistencias')),
-    const Center(child: Text('Buscar')),
-  ];
+    // Reemplazamos por el CampusScreen
+    CampusScreen(),
 
+    // Reemplazamos por el ReportsScreen
+    ReportsScreen(),
+
+    // Reemplazamos por el ProfileScreen
+    ProfileScreen(),
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -58,17 +66,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Attendify')),
+      appBar: AppBar(
+        title: const Text('Attendify'),
+        backgroundColor: const Color(0xFF53A09D),
+      ),
       drawer: const AppDrawer(), // <-- Include the drawer here
       body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: BottomNavBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.event_available), label: 'Asistencias'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
-        ],
       ),
     );
   }

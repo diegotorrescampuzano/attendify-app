@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/firestore_service.dart';
 
 /// Drawer widget with a profile and logout option.
 class AppDrawer extends StatelessWidget {
@@ -7,66 +8,76 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          // Drawer header con imagen del logo y fondo en el color principal corporativo
-          DrawerHeader(
-            decoration: const BoxDecoration(
-              color: Color(0xFF53a09d), // Color principal corporativo
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Puedes cambiar este AssetImage por tu logo
-                /*CircleAvatar(
-                  radius: 32,
-                  backgroundImage: AssetImage('assets/images/logo.png'), // Reemplaza por tu imagen
-                  backgroundColor: Colors.transparent,
-                ),*/
-                const SizedBox(height: 12),
-                const Text(
-                  'Attendify',
-                  style: TextStyle(
-                    color: Color(0xFFF0F0E3), // Color secundario corporativo claro
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Sistema de asistencia para profesores',
-                  style: TextStyle(
-                    color: Color(0xFFF0F0E3), // Mismo color claro para subtitulo
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
+      child: FutureBuilder<Map<String, dynamic>?>(
+        future: FirestoreService.getUserProfile(),
+        builder: (context, snapshot) {
+          final user = snapshot.data;
+          final name = user?['name'] ?? 'Usuario';
+          final email = user?['email'] ?? '';
 
-          // Profile menu option
-          ListTile(
-            leading: const Icon(Icons.person, color: Color(0xFF53a09d)), // Color principal corporativo para iconos
-            title: const Text('Mi Perfil'),
-            onTap: () {
-              Navigator.pop(context); // Close the drawer
-              // Navigate to ProfileScreen route
-              Navigator.pushNamed(context, '/profile');
-            },
-          ),
+          return ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              DrawerHeader(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF53a09d),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        color: Color(0xFFF0F0E3),
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      email,
+                      style: const TextStyle(
+                        color: Color(0xFFF0F0E3),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-          // Logout menu option
-          ListTile(
-            leading: const Icon(Icons.logout, color: Color(0xFF53a09d)), // Color principal corporativo para iconos
-            title: const Text('Cerrar sesión'),
-            onTap: () {
-              Navigator.pop(context); // Close the drawer
-              // Clear navigation stack and go to home or login screen
-              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-            },
-          ),
-        ],
+              // Profile menu option
+              ListTile(
+                leading: const Icon(Icons.person, color: Color(0xFF53a09d)),
+                title: const Text('Mi Perfil'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/profile');
+                },
+              ),
+
+              // Credits menu option
+              ListTile(
+                leading: const Icon(Icons.info, color: Color(0xFF53a09d)),
+                title: const Text('Créditos'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/credits');
+                  },
+              ),
+
+              // Logout menu option
+              ListTile(
+                leading: const Icon(Icons.logout, color: Color(0xFF53a09d)),
+                title: const Text('Cerrar sesión'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
