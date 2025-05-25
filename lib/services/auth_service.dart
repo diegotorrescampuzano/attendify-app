@@ -1,10 +1,16 @@
 // Import FirebaseAuth to use Firebase Authentication
 import 'package:firebase_auth/firebase_auth.dart';
 
-// Our custom authentication service class
+/// Our custom authentication service class
 class AuthService {
   // Create a singleton instance of FirebaseAuth
   static final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  // Store user data from Firestore for easy global access
+  static Map<String, dynamic>? _currentUserData;
+
+  /// Public getter to access user data (e.g., name, email, refId, etc.)
+  static Map<String, dynamic>? get currentUserData => _currentUserData;
 
   /// Attempts to log in the user with given email and password.
   /// Returns `null` if login is successful.
@@ -25,10 +31,17 @@ class AuthService {
 
   static Future<void> logout() async {
     await _auth.signOut();
+    _currentUserData = null; // Clear cached data on logout
   }
 
   /// Returns the current user ID (UID) if signed in
   static String? getCurrentUserId() {
     return _auth.currentUser?.uid;
+  }
+
+  /// Used by FirestoreService to cache user profile globally
+  static set currentUserData(Map<String, dynamic>? data) {
+    print("Setting current user data: $data");
+    _currentUserData = data;
   }
 }
