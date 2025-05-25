@@ -11,7 +11,17 @@ class FirestoreService {
     if (uid == null) return null;
 
     final doc = await _db.collection('users').doc(uid).get();
-    print("User data: ${doc.data()}");
+
+    if (!doc.exists) {
+      print("User document does not exist.");
+      return null;
+    }
+
+    print("User data from Firestore: ${doc.data()}");
+
+    // Store in global cache for future access
+    AuthService.currentUserData = doc.data();
+
     return doc.data();
   }
 }
