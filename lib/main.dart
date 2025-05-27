@@ -20,6 +20,10 @@ import 'screens/reports_screen.dart';
 
 import 'screens/credits_screen.dart';
 
+import 'screens/educational_level_screen.dart';
+
+import 'screens/grade_screen.dart';
+
 // The entry point of the application — must be `main()` in Dart
 void main() async {
   // Ensures that Flutter is fully initialized before we use platform channels or Firebase
@@ -45,13 +49,41 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       initialRoute: '/', // Start with LoginScreen
-      routes: {
-        '/': (_) => const LoginScreen(),       // Default route (Login)
-        '/home': (_) => const HomeScreen(),    // Home after login
-        '/profile': (_) => ProfileScreen(),
-        '/campus': (_) => CampusScreen(),
-        '/reports': (_) => ReportsScreen(),
-        '/credits': (_) => CreditsScreen(),
+      onGenerateRoute: (settings) {
+        switch (settings.name) {
+          case '/':
+            return MaterialPageRoute(builder: (_) => const LoginScreen());
+          case '/home':
+            return MaterialPageRoute(builder: (_) => const HomeScreen());
+          case '/profile':
+            return MaterialPageRoute(builder: (_) => ProfileScreen());
+          case '/campus':
+            return MaterialPageRoute(builder: (_) => CampusScreen());
+          case '/reports':
+            return MaterialPageRoute(builder: (_) => ReportsScreen());
+          case '/credits':
+            return MaterialPageRoute(builder: (_) => CreditsScreen());
+          case '/educationalLevel':
+          // Extract the arguments passed during navigation.
+          // We expect a Map<String, dynamic> containing the campus data.
+            final campus = settings.arguments as Map<String, dynamic>;
+
+            // Return a MaterialPageRoute to display the EducationalLevelScreen.
+            // The screen is built using the extracted 'campus' data.
+            return MaterialPageRoute(
+              builder: (_) => EducationalLevelScreen(campus: campus),
+            );
+          case '/grade':
+            final args = settings.arguments as Map<String, dynamic>;
+            return MaterialPageRoute(
+              builder: (_) => GradeScreen(
+                campus: args['campus'],
+                educationalLevel: args['educationalLevel'],
+              ),
+            );
+          default:
+            return null;
+        }
       },
     );
   }
