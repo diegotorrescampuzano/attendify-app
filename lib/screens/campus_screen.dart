@@ -36,7 +36,7 @@ class _CampusScreenState extends State<CampusScreen> {
 
   /// Navigate to the homeroom screen when a campus is selected
   void _onCampusSelected(Map<String, dynamic> campus) {
-    Navigator.pushNamed(context, '/homeroom', arguments: campus);
+    Navigator.pushNamed(context, '/educationalLevel', arguments: campus);
   }
 
   @override
