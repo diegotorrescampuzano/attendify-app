@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/grade_service.dart';
+import 'homeroom_screen.dart';  // Importa la pantalla de homerooms
 
 class GradeScreen extends StatefulWidget {
   final Map<String, dynamic> campus;
@@ -22,7 +23,6 @@ class _GradeScreenState extends State<GradeScreen> {
   void initState() {
     super.initState();
 
-    // Get educational level ID and start fetching grades
     final levelId = widget.educationalLevel['id'];
     _gradesFuture = GradeService.getGradesForLevel(levelId);
   }
@@ -40,7 +40,6 @@ class _GradeScreenState extends State<GradeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Display selected campus information for context
             Text(
               widget.campus['name'] ?? '',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -51,8 +50,6 @@ class _GradeScreenState extends State<GradeScreen> {
               style: const TextStyle(fontSize: 16, color: Colors.black54),
             ),
             const SizedBox(height: 12),
-
-            // Display selected educational level information
             Text(
               widget.educationalLevel['name'] ?? '',
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
@@ -63,15 +60,11 @@ class _GradeScreenState extends State<GradeScreen> {
               style: const TextStyle(fontSize: 16, color: Colors.black87),
             ),
             const SizedBox(height: 16),
-
-            // Section title for grades
             const Text(
               'Grados Escolares:',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
-
-            // Async grade list with loading/error states
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: _gradesFuture,
@@ -86,7 +79,6 @@ class _GradeScreenState extends State<GradeScreen> {
 
                   final grades = snapshot.data!;
 
-                  // Display list of grade cards
                   return ListView.builder(
                     itemCount: grades.length,
                     itemBuilder: (context, index) {
@@ -94,7 +86,6 @@ class _GradeScreenState extends State<GradeScreen> {
                       return Card(
                         elevation: 2,
                         child: ListTile(
-                          // Generic icon to represent groups of homerooms
                           leading: const Icon(Icons.groups, color: Color(0xFF53A09D)),
                           title: Text(
                             grade['name'] ?? '',
@@ -102,7 +93,16 @@ class _GradeScreenState extends State<GradeScreen> {
                           ),
                           subtitle: Text(grade['description'] ?? ''),
                           onTap: () {
-                            // TODO: Navigate to the homerooms screen in the next phase
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => HomeroomScreen(
+                                  campus: widget.campus, // No olvides pasar campus aquí
+                                  educationalLevel: widget.educationalLevel,
+                                  grade: grade,
+                                ),
+                              ),
+                            );
                           },
                         ),
                       );

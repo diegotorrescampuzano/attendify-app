@@ -24,6 +24,8 @@ import 'screens/educational_level_screen.dart';
 
 import 'screens/grade_screen.dart';
 
+import 'screens/homeroom_screen.dart';
+
 // The entry point of the application — must be `main()` in Dart
 void main() async {
   // Ensures that Flutter is fully initialized before we use platform channels or Firebase
@@ -79,6 +81,15 @@ class MyApp extends StatelessWidget {
               builder: (_) => GradeScreen(
                 campus: args['campus'],
                 educationalLevel: args['educationalLevel'],
+              ),
+            );
+          case '/homeroom':
+            final args = settings.arguments as Map<String, dynamic>;
+            return MaterialPageRoute(
+              builder: (_) => HomeroomScreen(
+                campus: args['campus'],
+                educationalLevel: args['educationalLevel'],
+                grade: args['grade'],
               ),
             );
           default:
