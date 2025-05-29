@@ -39,10 +39,35 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Mensaje informativo
+            Card(
+              color: const Color(0xFFE6F4F1),
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Icon(Icons.info_outline, color: Color(0xFF53A09D), size: 28),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Selecciona el salón de clase correspondiente al grado escolar para registrar la asistencia de los estudiantes.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Información del campus, nivel educativo y grado
             Text(
               widget.campus['name'] ?? '',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 4),
             Text(
               widget.educationalLevel['name'] ?? '',
               style: const TextStyle(fontSize: 18),
@@ -52,11 +77,14 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
               style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 20),
+
             const Text(
               'Salones disponibles:',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
+
+            // Lista de salones
             Expanded(
               child: ListView.builder(
                 itemCount: homeroomRefs.length,
@@ -68,7 +96,7 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const ListTile(title: Text('Cargando...'));
                       } else if (snapshot.hasError) {
-                        return ListTile(title: Text('Error al cargar salón'));
+                        return const ListTile(title: Text('Error al cargar salón'));
                       } else if (!snapshot.hasData || !snapshot.data!.exists) {
                         return const ListTile(title: Text('Salón no disponible'));
                       }
@@ -78,9 +106,10 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
                         child: ListTile(
                           title: Text(data['name'] ?? 'Sin nombre'),
                           subtitle: Text(data['description'] ?? ''),
+                          trailing: const Icon(Icons.chevron_right),
                           leading: const Icon(Icons.meeting_room, color: Color(0xFF53A09D)),
                           onTap: () {
-                            // Aquí podrías navegar a una pantalla de asistencia, por ejemplo.
+                            // Aquí podrías navegar a la pantalla de asistencia
                           },
                         ),
                       );

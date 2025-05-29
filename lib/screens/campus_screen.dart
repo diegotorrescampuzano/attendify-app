@@ -86,23 +86,49 @@ class _CampusScreenState extends State<CampusScreen> {
           }
 
           // Build the list of campus cards
-          return ListView.builder(
+          return ListView(
             padding: const EdgeInsets.all(12),
-            itemCount: campuses.length,
-            itemBuilder: (context, index) {
-              final campus = campuses[index];
-              return Card(
-                elevation: 3,
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                child: ListTile(
-                  leading: const Icon(Icons.location_city, color: Color(0xFF53A09D)), // Icon for campus
-                  title: Text(campus['name']), // Campus name
-                  subtitle: Text(campus['description']), // Campus description
-                  trailing: const Icon(Icons.chevron_right), // Chevron icon to indicate navigation
-                  onTap: () => _onCampusSelected(campus), // Navigate on tap
+            children: [
+              // Informative message for the teacher
+              Card(
+                color: const Color(0xFFE6F4F1),
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Icon(Icons.info_outline, color: Color(0xFF53A09D), size: 28),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'En esta pantalla puedes seleccionar la sede (campus) a la cual perteneces. '
+                              'Esto te permitirá acceder al proceso de registro de asistencia para tus estudiantes. '
+                              'Haz clic sobre una de las sedes para continuar.',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              );
-            },
+              ),
+
+              // List of campus cards
+              ...campuses.map((campus) {
+                return Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  child: ListTile(
+                    leading: const Icon(Icons.location_city, color: Color(0xFF53A09D)),
+                    title: Text(campus['name']),
+                    subtitle: Text(campus['description']),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _onCampusSelected(campus),
+                  ),
+                );
+              }).toList(),
+            ],
           );
         },
       ),

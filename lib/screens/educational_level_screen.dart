@@ -43,6 +43,30 @@ class _EducationalLevelScreenState extends State<EducationalLevelScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Informative message for the teacher
+            Card(
+              color: const Color(0xFFE6F4F1),
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Icon(Icons.info_outline, color: Color(0xFF53A09D), size: 28),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Aquí puedes seleccionar el nivel escolar correspondiente a la sede elegida. '
+                            'Esto te permitirá avanzar al listado de grados y continuar con el proceso de registro de asistencia.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             // Display campus name
             Text(
               widget.campus['name'] ?? '',
@@ -90,6 +114,7 @@ class _EducationalLevelScreenState extends State<EducationalLevelScreen> {
                           leading: const Icon(Icons.school, color: Color(0xFF53A09D)), // Educational icon
                           title: Text(level['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text(level['description'] ?? ''),
+                          trailing: const Icon(Icons.chevron_right), // Chevron icon to indicate navigation
                           onTap: () => _onLevelSelected(level), // Navigate on tap
                         ),
                       );
