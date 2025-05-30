@@ -26,6 +26,22 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
     homeroomRefs = (widget.grade['homerooms'] as List).cast<DocumentReference>();
   }
 
+  void _onHomeroomSelected(Map<String, dynamic> homeroomData, String homeroomId) {
+    Navigator.pushNamed(
+      context,
+      '/attendance', // o el nombre real de tu ruta para registrar asistencia
+      arguments: {
+        'campus': widget.campus,
+        'educationalLevel': widget.educationalLevel,
+        'grade': widget.grade,
+        'homeroom': {
+          ...homeroomData,
+          'id': homeroomId,
+        },
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,7 +55,6 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Mensaje informativo
             Card(
               color: const Color(0xFFE6F4F1),
               elevation: 2,
@@ -62,7 +77,6 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
               ),
             ),
 
-            // Información del campus, nivel educativo y grado
             Text(
               widget.campus['name'] ?? '',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -84,7 +98,6 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
             ),
             const SizedBox(height: 10),
 
-            // Lista de salones
             Expanded(
               child: ListView.builder(
                 itemCount: homeroomRefs.length,
@@ -103,14 +116,16 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
 
                       final data = snapshot.data!.data() as Map<String, dynamic>;
                       return Card(
+                        elevation: 2,
                         child: ListTile(
                           title: Text(data['name'] ?? 'Sin nombre'),
                           subtitle: Text(data['description'] ?? ''),
                           trailing: const Icon(Icons.chevron_right),
                           leading: const Icon(Icons.meeting_room, color: Color(0xFF53A09D)),
-                          onTap: () {
-                            // Aquí podrías navegar a la pantalla de asistencia
-                          },
+                          onTap: () => _onHomeroomSelected({
+                            ...data,
+                            'ref': snapshot.data!.reference,
+                          }, snapshot.data!.id),
                         ),
                       );
                     },

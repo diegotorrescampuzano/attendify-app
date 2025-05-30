@@ -14,6 +14,7 @@ class HomeroomService {
             'id': snapshot.id,
             'name': data['name'],
             'description': data['description'],
+            'students': data['students'], // Lista de estudiantes'
             // puedes agregar más campos según tu estructura
           });
         }
