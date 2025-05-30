@@ -22,7 +22,25 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-  final Map<String, bool> attendance = {};
+  final Map<String, String> attendance = {}; // tipo de asistencia por estudiante
+
+  final Map<String, String> attendanceLabels = {
+    'A': 'Asiste',
+    'T': 'Tarde',
+    'E': 'Evasión',
+    'I': 'Inasistencia',
+    'IJ': 'Inasistencia Justificada',
+    'P': 'Retiro con acudiente',
+  };
+
+  final Map<String, Color> attendanceColors = {
+    'A': Colors.green,
+    'T': Colors.orange,
+    'E': Colors.red,
+    'I': Colors.black54,
+    'IJ': Colors.blueGrey,
+    'P': Colors.purple,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -49,18 +67,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             Text(widget.grade['name'] ?? '', style: const TextStyle(fontSize: 16)),
             Text(widget.homeroom['name'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 16),
-
-            const Text(
-              'Estudiantes del salón:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
+            const Text('Estudiantes del salón:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
-
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: StudentService.getStudentsByHomeroom(widget.homeroom['ref']),
                 builder: (context, snapshot) {
-                  print("Snapshot data for attendance screen: ${snapshot.data}");
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
@@ -76,14 +88,43 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       final studentId = student['id'];
 
                       return Card(
-                        child: CheckboxListTile(
+                        elevation: 2,
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        child: ListTile(
                           title: Text(student['name'] ?? 'Sin nombre'),
-                          value: attendance[studentId] ?? true,
-                          onChanged: (value) {
-                            setState(() {
-                              attendance[studentId] = value ?? true;
-                            });
-                          },
+                          subtitle: Text(
+                            attendance[studentId] != null
+                                ? 'Estado: ${attendanceLabels[attendance[studentId]!]}'
+                                : 'Selecciona un estado',
+                            style: TextStyle(
+                              color: attendance[studentId] != null
+                                  ? attendanceColors[attendance[studentId]!]
+                                  : Colors.grey,
+                            ),
+                          ),
+                          trailing: DropdownButton<String>(
+                            hint: const Text('Estado'),
+                            value: attendance[studentId],
+                            items: attendanceLabels.entries.map((entry) {
+                              return DropdownMenuItem<String>(
+                                value: entry.key,
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.circle, color: attendanceColors[entry.key], size: 12),
+                                    const SizedBox(width: 8),
+                                    Text(entry.value),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                if (value != null) {
+                                  attendance[studentId] = value;
+                                }
+                              });
+                            },
+                          ),
                         ),
                       );
                     },
@@ -98,9 +139,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   void _saveAttendance() async {
+    if (attendance.length < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes registrar al menos una asistencia.')),
+      );
+      return;
+    }
+
     try {
       await AttendanceService.saveAttendance(
-        attendanceMap: attendance,
+        attendanceMap: attendance, // Aquí se guarda el tipo de asistencia por estudiante
         homeroomRef: widget.homeroom['ref'],
         gradeRef: widget.grade['ref'],
         educationalLevelRef: widget.educationalLevel['ref'],
