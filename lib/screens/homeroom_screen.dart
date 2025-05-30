@@ -29,7 +29,7 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
   void _onHomeroomSelected(Map<String, dynamic> homeroomData, String homeroomId) {
     Navigator.pushNamed(
       context,
-      '/attendance', // o el nombre real de tu ruta para registrar asistencia
+      '/subject', // o el nombre real de tu ruta para llamar al screen para seleccionar la asignatura
       arguments: {
         'campus': widget.campus,
         'educationalLevel': widget.educationalLevel,

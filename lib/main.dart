@@ -26,7 +26,7 @@ import 'screens/grade_screen.dart';
 
 import 'screens/homeroom_screen.dart';
 
-import 'screens/attendance_screen.dart';
+import 'screens/subject_screen.dart';
 
 // The entry point of the application — must be `main()` in Dart
 void main() async {
@@ -94,10 +94,10 @@ class MyApp extends StatelessWidget {
                 grade: args['grade'],
               ),
             );
-          case '/attendance':
+          case '/subject':
             final args = settings.arguments as Map<String, dynamic>;
             return MaterialPageRoute(
-              builder: (_) => AttendanceScreen(
+              builder: (_) => SubjectScreen(
                 campus: args['campus'],
                 educationalLevel: args['educationalLevel'],
                 grade: args['grade'],
