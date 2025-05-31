@@ -3,7 +3,7 @@ import 'dart:convert'; // Para decodificar base64
 import 'package:flutter/material.dart';
 import '../widgets/app_drawer.dart';
 import '../screens/campus_screen.dart';
-import '../screens/reports_screen.dart';
+import '../screens/report_screen.dart';
 import '../screens/profile_screen.dart';
 import '../widgets/bottom_navbar.dart';
 import '../services/home_service.dart'; // Importamos el nuevo servicio
@@ -103,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final List<Widget> _pages = [
       _buildWelcomePage(),      // Página de bienvenida mejorada
       CampusScreen(),           // Pantalla de campus
-      ReportsScreen(),          // Pantalla de reportes
+      ReportScreen(),          // Pantalla de reportes
       ProfileScreen(),          // Perfil
     ];
 
