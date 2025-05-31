@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+/// Attendance labels with descriptions and colors
 const Map<String, Map<String, dynamic>> attendanceLabels = {
   'A': {'description': 'Asiste', 'color': Color(0xFF4CAF50)},       // Green
   'T': {'description': 'Tarde', 'color': Color(0xFFFF9800)},        // Orange
@@ -13,6 +14,7 @@ const Map<String, Map<String, dynamic>> attendanceLabels = {
 class AttendanceService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  /// Generates a unique document ID for attendance based on homeroom, subject, date, and time
   String generateDocId({
     required String homeroomId,
     required String subjectId,
@@ -26,21 +28,28 @@ class AttendanceService {
     return '${homeroomId}_${subjectId}_${dateStr}_${timeClean}';
   }
 
-  Future<Map<String, String>> loadAttendance(String docId) async {
+  /// Loads attendance records including notes from Firestore.
+  /// Returns a map of studentId -> {'label': String, 'notes': String}
+  Future<Map<String, Map<String, String>>> loadFullAttendance(String docId) async {
     final doc = await _db.collection('attendances').doc(docId).get();
     if (!doc.exists) return {};
+
     final data = doc.data()!;
     final attendanceRecords = data['attendanceRecords'] as Map<String, dynamic>? ?? {};
+
     return attendanceRecords.map((studentId, record) {
       final label = record['label'] as String? ?? 'A';
-      return MapEntry(studentId, label);
+      final notes = record['notes'] as String? ?? '';
+      return MapEntry(studentId, {'label': label, 'notes': notes});
     });
   }
 
-  Future<void> saveAttendance({
+  /// Saves attendance records including notes to Firestore
+  Future<void> saveFullAttendance({
     required String docId,
     required Map<String, dynamic> generalInfo,
-    required Map<String, String> attendanceMap,
+    required Map<String, String> attendanceMap, // studentId -> label
+    required Map<String, String> notesMap,      // studentId -> notes
     required DateTime date,
     required String timeSlot,
     required String teacherId,
@@ -55,7 +64,7 @@ class AttendanceService {
         'label': label,
         'labelDescription': labelInfo['description'],
         'labelColor': labelInfo['color'].value.toRadixString(16).padLeft(8, '0'),
-        'notes': '',
+        'notes': notesMap[studentId] ?? '',
         'timestamp': timestamp,
       };
     });

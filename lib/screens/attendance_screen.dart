@@ -5,8 +5,8 @@ import '../services/attendance_service.dart';
 import '../services/auth_service.dart';
 import '../services/homeroom_service.dart';
 
-/// AttendanceScreen allows teachers to mark attendance for students in a specific class session.
-/// It shows general info, student list with attendance dropdown, and saves attendance automatically on change.
+/// AttendanceScreen allows teachers to mark attendance and add notes per student.
+/// Notes are saved immediately along with attendance status.
 class AttendanceScreen extends StatefulWidget {
   final Map<String, dynamic> campus;
   final Map<String, dynamic> educationalLevel;
@@ -40,8 +40,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   late Future<List<Map<String, dynamic>>> _studentsFuture;
 
-  // Map to hold attendance status per student: studentId -> attendance label code (e.g., 'A', 'I', etc.)
+  // Maps to hold attendance status and notes per student
   Map<String, String> _attendanceMap = {};
+  Map<String, String> _attendanceNotes = {};
 
   // Loading flag to show progress indicator during save operations
   bool _loadingSave = false;
@@ -50,7 +51,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String? _teacherId;
   String? _teacherName;
 
-  /// Generates a unique document ID for the attendance record based on homeroom, subject, date, and time
+  /// Generates a unique document ID for the attendance record
   String get _docId => _attendanceService.generateDocId(
     homeroomId: widget.homeroom['id'],
     subjectId: widget.subject['id'],
@@ -71,7 +72,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _teacherName = userData?['name'];
 
     if (_teacherId == null || _teacherName == null) {
-      // Log warning if teacher info is missing
       print('Warning: Teacher info missing in AuthService.currentUserData');
     }
 
@@ -79,15 +79,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _loadExistingAttendance();
   }
 
-  /// Loads existing attendance data from Firestore and updates local state
+  /// Loads existing attendance data and notes from Firestore and updates local state
   Future<void> _loadExistingAttendance() async {
-    final existingAttendance = await _attendanceService.loadAttendance(_docId);
+    final attendanceData = await _attendanceService.loadFullAttendance(_docId);
     setState(() {
-      _attendanceMap = existingAttendance;
+      _attendanceMap = attendanceData.map((id, map) => MapEntry(id, map['label'] ?? 'A'));
+      _attendanceNotes = attendanceData.map((id, map) => MapEntry(id, map['notes'] ?? ''));
     });
   }
 
-  /// Saves attendance data to Firestore using AttendanceService
+  /// Saves attendance and notes to Firestore using AttendanceService
   Future<void> _saveAttendance() async {
     if (_teacherId == null || _teacherName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,10 +116,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     };
 
     try {
-      await _attendanceService.saveAttendance(
+      await _attendanceService.saveFullAttendance(
         docId: _docId,
         generalInfo: generalInfo,
         attendanceMap: _attendanceMap,
+        notesMap: _attendanceNotes,
         date: widget.selectedDate,
         timeSlot: widget.selectedTime,
         teacherId: _teacherId!,
@@ -142,60 +144,53 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   /// Called when a student's attendance status changes.
-  /// Updates local state and immediately saves attendance.
+  /// Updates local state and immediately saves attendance and notes.
   void _onAttendanceChanged(String studentId, String newLabel) async {
     setState(() {
       _attendanceMap[studentId] = newLabel;
       _loadingSave = true;
     });
 
-    if (_teacherId == null || _teacherName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se encontró información del docente.')),
-      );
+    await _saveAttendance();
+  }
+
+  /// Opens a dialog to add/edit a note for a student.
+  /// Saves the note immediately after editing.
+  Future<void> _editNoteDialog(String studentId, String studentName) async {
+    String tempNote = _attendanceNotes[studentId] ?? '';
+    final controller = TextEditingController(text: tempNote);
+
+    final newNote = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Nota para $studentName'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: 4,
+            decoration: const InputDecoration(hintText: 'Escribe una nota...'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (newNote != null) {
       setState(() {
-        _loadingSave = false;
+        _attendanceNotes[studentId] = newNote;
+        _loadingSave = true;
       });
-      return;
-    }
-
-    final generalInfo = {
-      'campusId': widget.campus['id'],
-      'campusName': widget.campus['name'],
-      'educationalLevelId': widget.educationalLevel['id'],
-      'educationalLevelName': widget.educationalLevel['name'],
-      'gradeId': widget.grade['id'],
-      'gradeName': widget.grade['name'],
-      'homeroomId': widget.homeroom['id'],
-      'homeroomName': widget.homeroom['name'],
-      'subjectId': widget.subject['id'],
-      'subjectName': widget.subject['name'],
-    };
-
-    try {
-      await _attendanceService.saveAttendance(
-        docId: _docId,
-        generalInfo: generalInfo,
-        attendanceMap: _attendanceMap,
-        date: widget.selectedDate,
-        timeSlot: widget.selectedTime,
-        teacherId: _teacherId!,
-        teacherName: _teacherName!,
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Asistencia guardada')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al guardar: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _loadingSave = false;
-        });
-      }
+      await _saveAttendance();
     }
   }
 
@@ -221,7 +216,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Display general info about the class session
+            // General info display
             Text('Campus: ${widget.campus['name']}', style: TextStyle(fontSize: 16, color: Colors.black87)),
             Text('Nivel Educativo: ${widget.educationalLevel['name']}', style: TextStyle(fontSize: 16, color: Colors.black87)),
             Text('Grado: ${widget.grade['name']}', style: TextStyle(fontSize: 16, color: Colors.black87)),
@@ -232,12 +227,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             const SizedBox(height: 16),
             const Divider(),
             const Text(
-              'Selecciona el estado de asistencia para cada estudiante:',
+              'Selecciona el estado de asistencia para cada estudiante y agrega notas si es necesario:',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
 
-            // List of students with attendance dropdowns
+            // Student list with attendance dropdown and note icon
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: _studentsFuture,
@@ -260,45 +255,75 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       final student = students[index];
                       final studentId = student['id'] ?? student['ref']?.id ?? '';
                       final studentName = student['name'] ?? 'Sin nombre';
-                      final currentLabel = _attendanceMap[studentId] ?? 'A';
+                      final currentLabel = _attendanceMap[studentId] ?? '';
+                      final hasNote = (_attendanceNotes[studentId]?.isNotEmpty ?? false);
 
                       return Card(
                         elevation: 2,
                         margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                          // Student icon with corporate primary color
-                          leading: Icon(Icons.person, color: primaryColor),
-                          title: Text(studentName),
-                          subtitle: Text(student['cellphoneContact'] ?? ''),
-                          trailing: DropdownButton<String>(
-                            value: currentLabel,
-                            items: attendanceLabels.entries.map((entry) {
-                              final label = entry.key;
-                              final desc = entry.value['description'] as String;
-                              final color = entry.value['color'] as Color;
-                              return DropdownMenuItem<String>(
-                                value: label,
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 12,
-                                      height: 12,
-                                      margin: const EdgeInsets.only(right: 8),
-                                      decoration: BoxDecoration(
-                                        color: color,
-                                        shape: BoxShape.circle,
-                                      ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // First row: icon + name + note button aligned horizontally
+                              Row(
+                                children: [
+                                  Icon(Icons.person, color: primaryColor, size: 28),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      studentName,
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    Text(desc),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (newLabel) {
-                              if (newLabel != null) {
-                                _onAttendanceChanged(studentId, newLabel);
-                              }
-                            },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      hasNote ? Icons.note : Icons.note_outlined,
+                                      color: hasNote ? Colors.amber : Colors.grey,
+                                      size: 28,
+                                    ),
+                                    tooltip: hasNote ? 'Editar nota' : 'Agregar nota',
+                                    onPressed: () => _editNoteDialog(studentId, studentName),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              // Second row: attendance dropdown full width
+                              DropdownButton<String>(
+                                value: (currentLabel != null && currentLabel.isNotEmpty) ? currentLabel : null,
+                                hint: const Text('Seleccione el estado'),
+                                isExpanded: true,
+                                items: attendanceLabels.entries.map((entry) {
+                                  final label = entry.key;
+                                  final desc = entry.value['description'] as String;
+                                  final color = entry.value['color'] as Color;
+                                  return DropdownMenuItem<String>(
+                                    value: label,
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 14,
+                                          height: 14,
+                                          margin: const EdgeInsets.only(right: 8),
+                                          decoration: BoxDecoration(
+                                            color: color,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        Text(desc),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (newLabel) {
+                                  if (newLabel != null) {
+                                    _onAttendanceChanged(studentId, newLabel);
+                                  }
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       );
