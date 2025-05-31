@@ -15,6 +15,7 @@ class HomeroomService {
             'name': data['name'],
             'description': data['description'],
             'students': data['students'], // Lista de estudiantes'
+            'subjects': data['subjects'], // Lista de asignaturas
             // puedes agregar más campos según tu estructura
           });
         }
