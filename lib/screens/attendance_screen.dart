@@ -30,6 +30,10 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
+  // Corporate colors
+  static const Color backgroundColor = Color(0xFFF0F0E3);
+  static const Color primaryColor = Color(0xFF53A09D);
+
   final AttendanceService _attendanceService = AttendanceService();
 
   late Future<List<Map<String, dynamic>>> _studentsFuture;
@@ -51,10 +55,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   void initState() {
     super.initState();
 
-    // Load students from homeroom
     _studentsFuture = HomeroomService.getStudentsFromHomeroom(widget.homeroom['ref']);
 
-    // Get teacher info from AuthService
     final userData = AuthService.currentUserData;
     _teacherId = userData?['refId'];
     _teacherName = userData?['name'];
@@ -126,9 +128,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         title: const Text('Registro de Asistencia'),
-        backgroundColor: const Color(0xFF53A09D),
+        backgroundColor: primaryColor,
         actions: [
           IconButton(
             icon: _loadingSave
@@ -144,13 +147,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Campus: ${widget.campus['name']}', style: const TextStyle(fontSize: 16)),
-            Text('Nivel Educativo: ${widget.educationalLevel['name']}', style: const TextStyle(fontSize: 16)),
-            Text('Grado: ${widget.grade['name']}', style: const TextStyle(fontSize: 16)),
-            Text('Salón: ${widget.homeroom['name']}', style: const TextStyle(fontSize: 16)),
-            Text('Asignatura: ${widget.subject['name']}', style: const TextStyle(fontSize: 16)),
-            Text('Fecha: ${DateFormat('dd/MM/yyyy').format(widget.selectedDate)}', style: const TextStyle(fontSize: 16)),
-            Text('Hora: ${widget.selectedTime}', style: const TextStyle(fontSize: 16)),
+            Text('Campus: ${widget.campus['name']}', style: TextStyle(fontSize: 16, color: Colors.black87)),
+            Text('Nivel Educativo: ${widget.educationalLevel['name']}', style: TextStyle(fontSize: 16, color: Colors.black87)),
+            Text('Grado: ${widget.grade['name']}', style: TextStyle(fontSize: 16, color: Colors.black87)),
+            Text('Salón: ${widget.homeroom['name']}', style: TextStyle(fontSize: 16, color: Colors.black87)),
+            Text('Asignatura: ${widget.subject['name']}', style: TextStyle(fontSize: 16, color: Colors.black87)),
+            Text('Fecha: ${DateFormat('dd/MM/yyyy').format(widget.selectedDate)}', style: TextStyle(fontSize: 16, color: Colors.black87)),
+            Text('Hora: ${widget.selectedTime}', style: TextStyle(fontSize: 16, color: Colors.black87)),
             const SizedBox(height: 16),
             const Divider(),
             const Text(
@@ -186,6 +189,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         elevation: 2,
                         margin: const EdgeInsets.symmetric(vertical: 6),
                         child: ListTile(
+                          leading: Icon(Icons.person, color: primaryColor),
                           title: Text(studentName),
                           subtitle: Text(student['cellphoneContact'] ?? ''),
                           trailing: DropdownButton<String>(
