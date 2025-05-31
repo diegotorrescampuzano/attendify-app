@@ -10,28 +10,21 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 // Import the generated Firebase options for our specific platform (Android/iOS)
 import 'firebase_options.dart';
 
-// Import the LoginScreen widget from our screens folder
+// Import screens
 import 'screens/login_screen.dart';
-
 import 'screens/home_screen.dart';
-
 import 'screens/profile_screen.dart';
-
 import 'screens/campus_screen.dart';
-
 import 'screens/report_screen.dart';
-
 import 'screens/credits_screen.dart';
-
 import 'screens/educational_level_screen.dart';
-
 import 'screens/grade_screen.dart';
-
 import 'screens/homeroom_screen.dart';
-
 import 'screens/subject_screen.dart';
-
 import 'screens/attendance_screen.dart';
+
+// Import the new teacher summary report screen
+import 'screens/reports/teacher_summary_screen.dart';
 
 // The entry point of the application — must be `main()` in Dart
 void main() async {
@@ -80,7 +73,9 @@ class MyApp extends StatelessWidget {
           case '/campus':
             return MaterialPageRoute(builder: (_) => CampusScreen());
           case '/report':
-            return MaterialPageRoute(builder: (_) => ReportScreen());
+            return MaterialPageRoute(builder: (_) => const ReportScreen());
+          case '/teacherSummary':
+            return MaterialPageRoute(builder: (_) => const TeacherSummaryScreen());
           case '/credits':
             return MaterialPageRoute(builder: (_) => CreditsScreen());
           case '/educationalLevel':
@@ -126,8 +121,6 @@ class MyApp extends StatelessWidget {
                 subject: args['subject'],
                 selectedDate: args['selectedDate'],
                 selectedTime: args['selectedTime'],
-                // teacherId and teacherName are fetched inside AttendanceScreen from AuthService,
-                // so no need to pass here unless you want to override
               ),
             );
           default:
