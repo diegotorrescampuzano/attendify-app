@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // For weekday formatting and date formatting
+import 'package:intl/intl.dart';
 import '../services/subject_service.dart';
+import 'attendance_screen.dart'; // <-- Import your AttendanceScreen
 
 class SubjectScreen extends StatefulWidget {
   final Map<String, dynamic> campus;
   final Map<String, dynamic> educationalLevel;
   final Map<String, dynamic> grade;
-  final Map<String, dynamic> homeroom; // Includes 'id' and 'ref' (DocumentReference)
+  final Map<String, dynamic> homeroom;
 
   const SubjectScreen({
     super.key,
@@ -24,7 +25,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
   late Future<List<Map<String, dynamic>>> _subjectsFuture;
   late String _weekdayKey;
 
-  // Map English weekday names to Spanish as static const
   static const Map<String, String> englishToSpanishWeekdays = {
     'monday': 'Lunes',
     'tuesday': 'Martes',
@@ -35,7 +35,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
     'sunday': 'Domingo',
   };
 
-  // Time slots every 30 minutes from 7:00 AM to 6:00 PM
   final List<String> timeSlots = [
     '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM',
     '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM',
@@ -65,13 +64,11 @@ class _SubjectScreenState extends State<SubjectScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-      locale: const Locale('es'), // Optional: Spanish locale
+      locale: const Locale('es'),
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
-
-        // Update weekday key and refresh subjects for new day
         _weekdayKey = DateFormat('EEEE').format(_selectedDate).toLowerCase();
         final homeroomRef = widget.homeroom['ref'];
         _subjectsFuture = SubjectService.getSubjectsForHomeroomByDay(homeroomRef, _weekdayKey);
@@ -94,7 +91,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Info card
             Card(
               color: const Color(0xFFE6F4F1),
               elevation: 2,
@@ -116,8 +112,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
                 ),
               ),
             ),
-
-            // Display hierarchy info
             Text(
               widget.campus['name'] ?? '',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -136,8 +130,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
               style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 20),
-
-            // Instruction text
             const Padding(
               padding: EdgeInsets.only(bottom: 12.0),
               child: Text(
@@ -145,11 +137,8 @@ class _SubjectScreenState extends State<SubjectScreen> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
-
-            // Row with calendar picker and time dropdown
             Row(
               children: [
-                // Calendar picker button
                 Expanded(
                   flex: 1,
                   child: OutlinedButton.icon(
@@ -166,7 +155,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                // Time picker dropdown
                 Expanded(
                   flex: 1,
                   child: InputDecorator(
@@ -198,18 +186,12 @@ class _SubjectScreenState extends State<SubjectScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
-
-            // Current weekday display in Spanish
             Text(
               'Asignaturas para el día: $spanishWeekday',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
-
             const SizedBox(height: 10),
-
-            // Subjects list
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: _subjectsFuture,
@@ -239,8 +221,19 @@ class _SubjectScreenState extends State<SubjectScreen> {
                           subtitle: Text(subject['description']),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () {
-                            // TODO: Navigate to attendance screen or next step
-                            // You can pass selected date and time here as well
+                            Navigator.pushNamed(
+                              context,
+                              '/attendance',
+                              arguments: {
+                                'campus': widget.campus,
+                                'educationalLevel': widget.educationalLevel,
+                                'grade': widget.grade,
+                                'homeroom': widget.homeroom,
+                                'subject': subject,
+                                'selectedDate': _selectedDate,
+                                'selectedTime': _selectedTime,
+                              },
+                            );
                           },
                         ),
                       );

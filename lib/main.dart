@@ -31,6 +31,8 @@ import 'screens/homeroom_screen.dart';
 
 import 'screens/subject_screen.dart';
 
+import 'screens/attendance_screen.dart';
+
 // The entry point of the application — must be `main()` in Dart
 void main() async {
   // Ensures that Flutter is fully initialized before we use platform channels or Firebase
@@ -111,6 +113,21 @@ class MyApp extends StatelessWidget {
                 educationalLevel: args['educationalLevel'],
                 grade: args['grade'],
                 homeroom: args['homeroom'],
+              ),
+            );
+          case '/attendance':
+            final args = settings.arguments as Map<String, dynamic>;
+            return MaterialPageRoute(
+              builder: (_) => AttendanceScreen(
+                campus: args['campus'],
+                educationalLevel: args['educationalLevel'],
+                grade: args['grade'],
+                homeroom: args['homeroom'],
+                subject: args['subject'],
+                selectedDate: args['selectedDate'],
+                selectedTime: args['selectedTime'],
+                // teacherId and teacherName are fetched inside AttendanceScreen from AuthService,
+                // so no need to pass here unless you want to override
               ),
             );
           default:
