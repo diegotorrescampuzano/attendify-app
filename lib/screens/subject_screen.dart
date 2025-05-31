@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // For weekday formatting
+import 'package:intl/intl.dart'; // For weekday formatting and date formatting
 import '../services/subject_service.dart';
 
 class SubjectScreen extends StatefulWidget {
@@ -35,6 +35,17 @@ class _SubjectScreenState extends State<SubjectScreen> {
     'sunday': 'Domingo',
   };
 
+  // Time slots every 30 minutes from 7:00 AM to 6:00 PM
+  final List<String> timeSlots = [
+    '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM',
+    '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM',
+    '01:00 PM', '01:30 PM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM',
+    '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM', '06:00 PM',
+  ];
+
+  DateTime _selectedDate = DateTime.now();
+  late String _selectedTime;
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +55,28 @@ class _SubjectScreenState extends State<SubjectScreen> {
 
     final homeroomRef = widget.homeroom['ref'];
     _subjectsFuture = SubjectService.getSubjectsForHomeroomByDay(homeroomRef, _weekdayKey);
+
+    _selectedTime = timeSlots[0];
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      locale: const Locale('es'), // Optional: Spanish locale
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+
+        // Update weekday key and refresh subjects for new day
+        _weekdayKey = DateFormat('EEEE').format(_selectedDate).toLowerCase();
+        final homeroomRef = widget.homeroom['ref'];
+        _subjectsFuture = SubjectService.getSubjectsForHomeroomByDay(homeroomRef, _weekdayKey);
+      });
+    }
   }
 
   @override
@@ -70,10 +103,10 @@ class _SubjectScreenState extends State<SubjectScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.info_outline, color: Color(0xFF53A09D), size: 28),
-                    const SizedBox(width: 12),
-                    const Expanded(
+                  children: const [
+                    Icon(Icons.info_outline, color: Color(0xFF53A09D), size: 28),
+                    SizedBox(width: 12),
+                    Expanded(
                       child: Text(
                         'Selecciona la asignatura correspondiente al salón y día actual para continuar con el registro de asistencia.',
                         style: TextStyle(fontSize: 16),
@@ -102,6 +135,70 @@ class _SubjectScreenState extends State<SubjectScreen> {
               widget.homeroom['name'] ?? '',
               style: const TextStyle(fontSize: 16),
             ),
+            const SizedBox(height: 20),
+
+            // Instruction text
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12.0),
+              child: Text(
+                'Selecciona la fecha y hora para la asistencia de la clase:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+
+            // Row with calendar picker and time dropdown
+            Row(
+              children: [
+                // Calendar picker button
+                Expanded(
+                  flex: 1,
+                  child: OutlinedButton.icon(
+                    onPressed: _pickDate,
+                    icon: const Icon(Icons.calendar_today, color: Color(0xFF53A09D)),
+                    label: Text(
+                      DateFormat('dd/MM/yyyy').format(_selectedDate),
+                      style: const TextStyle(fontSize: 16, color: Colors.black87),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: Color(0xFF53A09D)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Time picker dropdown
+                Expanded(
+                  flex: 1,
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Hora',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedTime,
+                        isExpanded: true,
+                        items: timeSlots.map((time) {
+                          return DropdownMenuItem<String>(
+                            value: time,
+                            child: Text(time),
+                          );
+                        }).toList(),
+                        onChanged: (newTime) {
+                          if (newTime != null) {
+                            setState(() {
+                              _selectedTime = newTime;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
             const SizedBox(height: 20),
 
             // Current weekday display in Spanish
@@ -143,6 +240,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () {
                             // TODO: Navigate to attendance screen or next step
+                            // You can pass selected date and time here as well
                           },
                         ),
                       );

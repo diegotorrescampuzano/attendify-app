@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 // Import Firebase core so we can initialize it
 import 'package:firebase_core/firebase_core.dart';
 
+// Import flutter_localizations for localization support
+import 'package:flutter_localizations/flutter_localizations.dart';
+
 // Import the generated Firebase options for our specific platform (Android/iOS)
 import 'firebase_options.dart';
 
@@ -52,6 +55,17 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
+      // Add localization delegates and supported locales here
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''), // English
+        Locale('es', ''), // Spanish
+        // Add other locales here if needed
+      ],
       initialRoute: '/', // Start with LoginScreen
       onGenerateRoute: (settings) {
         switch (settings.name) {
@@ -68,12 +82,7 @@ class MyApp extends StatelessWidget {
           case '/credits':
             return MaterialPageRoute(builder: (_) => CreditsScreen());
           case '/educationalLevel':
-          // Extract the arguments passed during navigation.
-          // We expect a Map<String, dynamic> containing the campus data.
             final campus = settings.arguments as Map<String, dynamic>;
-
-            // Return a MaterialPageRoute to display the EducationalLevelScreen.
-            // The screen is built using the extracted 'campus' data.
             return MaterialPageRoute(
               builder: (_) => EducationalLevelScreen(campus: campus),
             );
