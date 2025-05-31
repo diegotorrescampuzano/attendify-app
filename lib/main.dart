@@ -19,7 +19,7 @@ import 'screens/profile_screen.dart';
 
 import 'screens/campus_screen.dart';
 
-import 'screens/reports_screen.dart';
+import 'screens/report_screen.dart';
 
 import 'screens/credits_screen.dart';
 
@@ -79,8 +79,8 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => ProfileScreen());
           case '/campus':
             return MaterialPageRoute(builder: (_) => CampusScreen());
-          case '/reports':
-            return MaterialPageRoute(builder: (_) => ReportsScreen());
+          case '/report':
+            return MaterialPageRoute(builder: (_) => ReportScreen());
           case '/credits':
             return MaterialPageRoute(builder: (_) => CreditsScreen());
           case '/educationalLevel':
