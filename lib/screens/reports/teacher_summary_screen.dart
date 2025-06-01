@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../../services/reports/teacher_summary_service.dart';
 import '../../services/auth_service.dart';
@@ -122,8 +123,25 @@ class _TeacherSummaryScreenState extends State<TeacherSummaryScreen> {
     }
   }
 
+  /// Compute total counts per attendance label across all subjects
+  Map<String, int> get _totalCounts {
+    final totals = <String, int>{};
+    for (var label in attendanceLabels.keys) {
+      totals[label] = 0;
+    }
+    for (var subjectCounts in _summaryData.values) {
+      for (var label in attendanceLabels.keys) {
+        totals[label] = (totals[label] ?? 0) + (subjectCounts[label] ?? 0);
+      }
+    }
+    return totals;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final totals = _totalCounts;
+    final totalSum = totals.values.fold<int>(0, (sum, val) => sum + val);
+
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
@@ -215,6 +233,39 @@ class _TeacherSummaryScreenState extends State<TeacherSummaryScreen> {
 
             const SizedBox(height: 24),
 
+            // Pie Chart for attendance totals
+            if (totalSum > 0)
+              SizedBox(
+                height: 200,
+                child: PieChart(
+                  PieChartData(
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 40,
+                    sections: attendanceLabels.entries.map((entry) {
+                      final label = entry.key;
+                      final count = totals[label] ?? 0;
+                      if (count == 0) return null;
+                      final percentage = (count / totalSum) * 100;
+                      return PieChartSectionData(
+                        color: Color(entry.value['color']),
+                        value: count.toDouble(),
+                        title: '${percentage.toStringAsFixed(1)}%',
+                        radius: 50,
+                        titleStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      );
+                    }).whereType<PieChartSectionData>().toList(),
+                  ),
+                ),
+              )
+            else
+              const Center(child: Text('No hay datos para mostrar en el gráfico.')),
+
+            const SizedBox(height: 24),
+
             // Summary report header
             Text(
               'Resumen de asistencias',
@@ -253,28 +304,70 @@ class _TeacherSummaryScreenState extends State<TeacherSummaryScreen> {
               ),
             ),
 
-            // Summary data list
+            // Summary data list + totals row
             Expanded(
-              child: _summaryData.isEmpty
-                  ? const Center(child: Text('No hay datos para los filtros seleccionados.'))
-                  : ListView.builder(
-                itemCount: _summaryData.length,
-                itemBuilder: (context, index) {
-                  final subject = _summaryData.keys.elementAt(index);
-                  final counts = _summaryData[subject]!;
+              child: Column(
+                children: [
+                  Expanded(
+                    child: _summaryData.isEmpty
+                        ? const Center(child: Text('No hay datos para los filtros seleccionados.'))
+                        : ListView.builder(
+                      itemCount: _summaryData.length,
+                      itemBuilder: (context, index) {
+                        final subject = _summaryData.keys.elementAt(index);
+                        final counts = _summaryData[subject]!;
 
-                  return Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        return Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey.shade300),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(flex: 3, child: Text(subject)),
+                              ...attendanceLabels.keys.map((labelKey) {
+                                final count = counts[labelKey] ?? 0;
+                                return Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    '$count',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Color(attendanceLabels[labelKey]!['color']),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  // Totals row
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                     decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.15),
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade300),
+                        top: BorderSide(color: Colors.grey.shade500),
                       ),
                     ),
                     child: Row(
                       children: [
-                        Expanded(flex: 3, child: Text(subject)),
+                        const Expanded(
+                          flex: 3,
+                          child: Text(
+                            'Totales',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
                         ...attendanceLabels.keys.map((labelKey) {
-                          final count = counts[labelKey] ?? 0;
+                          final count = totals[labelKey] ?? 0;
                           return Expanded(
                             flex: 2,
                             child: Text(
@@ -282,15 +375,16 @@ class _TeacherSummaryScreenState extends State<TeacherSummaryScreen> {
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: Color(attendanceLabels[labelKey]!['color']),
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
                           );
                         }).toList(),
                       ],
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
           ],
