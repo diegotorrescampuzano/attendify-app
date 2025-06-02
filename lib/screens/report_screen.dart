@@ -34,7 +34,7 @@ class ReportScreen extends StatelessWidget {
       title: 'Patrones de Ausencia',
       description: 'Identificación de estudiantes con ausencias continuas o frecuentes.',
       icon: FontAwesomeIcons.exclamationTriangle,
-      routeName: '',
+      routeName: '/patternSummary',
     ),
     _ReportCardData(
       title: 'Asistencia por Periodo',
