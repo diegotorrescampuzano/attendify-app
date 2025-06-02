@@ -22,7 +22,7 @@ class ReportScreen extends StatelessWidget {
       description:
       'Asistencias de estudiantes filtradas por rango de fechas, agrupadas por asignatura.',
       icon: FontAwesomeIcons.userGraduate,
-      routeName: '',
+      routeName: '/studentSummary', // add this route here
     ),
     _ReportCardData(
       title: 'Resumen de Asistencia por Asignatura',
