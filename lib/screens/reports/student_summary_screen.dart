@@ -51,6 +51,7 @@ class _StudentSummaryScreenState extends State<StudentSummaryScreen> {
 
   final TextEditingController _criteriaController = TextEditingController();
   Timer? _debounce;
+  String _lastFilterValue = '';
 
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _endDate = DateTime.now();
@@ -76,9 +77,13 @@ class _StudentSummaryScreenState extends State<StudentSummaryScreen> {
 
   void _onCriteriaChanged() {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
+    _debounce = Timer(const Duration(milliseconds: 2000), () {
+      final currentText = _criteriaController.text.trim();
+      if (currentText == _lastFilterValue) return; // No change, skip
+      _lastFilterValue = currentText;
+
       setState(() {
-        _filterValue = _criteriaController.text;
+        _filterValue = currentText;
       });
       _loadStudents();
     });
@@ -107,18 +112,10 @@ class _StudentSummaryScreenState extends State<StudentSummaryScreen> {
 
       setState(() {
         _students = filtered;
-        if (_students.isNotEmpty) {
-          if (_selectedStudentRefId == null || !_students.any((s) => s['refId'] == _selectedStudentRefId)) {
-            _selectedStudentRefId = _students.first['refId'];
-          }
-        } else {
-          _selectedStudentRefId = null;
-        }
+        // Do NOT auto-select a student here; teacher must choose explicitly
       });
 
-      if (_selectedStudentRefId != null) {
-        await _fetchAttendanceDetail();
-      } else {
+      if (_selectedStudentRefId == null) {
         setState(() {
           _attendanceDetail = {};
         });
@@ -239,6 +236,7 @@ class _StudentSummaryScreenState extends State<StudentSummaryScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ),
       value: _selectedStudentRefId,
+      hint: const Text('Seleccione un estudiante'),
       items: _students.map((student) {
         return DropdownMenuItem<String>(
           value: student['refId'],
@@ -249,7 +247,13 @@ class _StudentSummaryScreenState extends State<StudentSummaryScreen> {
         setState(() {
           _selectedStudentRefId = value;
         });
-        await _fetchAttendanceDetail();
+        if (value != null) {
+          await _fetchAttendanceDetail();
+        } else {
+          setState(() {
+            _attendanceDetail = {};
+          });
+        }
       },
     );
   }
@@ -275,6 +279,13 @@ class _StudentSummaryScreenState extends State<StudentSummaryScreen> {
     }
 
     final labels = attendanceLabels.keys.toList();
+
+    final Map<String, int> grandTotals = {};
+    for (final counts in totals.values) {
+      for (final label in labels) {
+        grandTotals[label] = (grandTotals[label] ?? 0) + (counts[label] ?? 0);
+      }
+    }
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -305,61 +316,64 @@ class _StudentSummaryScreenState extends State<StudentSummaryScreen> {
               ),
             );
           }).toList(),
-          DataColumn(
-            label: SizedBox(
-              width: 40,
-              child: const Text(
-                'Total',
-                style: TextStyle(fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            ),
-            numeric: true,
-          ),
         ],
-        rows: totals.entries.map((entry) {
-          final subject = entry.key;
-          final counts = entry.value;
-          final totalCount = counts.values.fold<int>(0, (sum, c) => sum + c);
+        rows: [
+          ...totals.entries.map((entry) {
+            final subject = entry.key;
+            final counts = entry.value;
 
-          return DataRow(
-            cells: [
-              DataCell(
-                SizedBox(
-                  width: 150,
-                  child: Text(
-                    subject,
-                    overflow: TextOverflow.ellipsis,
+            return DataRow(
+              cells: [
+                DataCell(
+                  SizedBox(
+                    width: 150,
+                    child: Text(
+                      subject,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                ),
+                ...labels.map((label) {
+                  final count = counts[label] ?? 0;
+                  return DataCell(
+                    SizedBox(
+                      width: 24,
+                      child: Text(
+                        count.toString(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ],
+            );
+          }),
+          DataRow(
+            color: MaterialStateProperty.all(primaryColor.withOpacity(0.15)),
+            cells: [
+              const DataCell(
+                Text(
+                  'Total',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
               ...labels.map((label) {
-                final count = counts[label] ?? 0;
+                final total = grandTotals[label] ?? 0;
                 return DataCell(
                   SizedBox(
                     width: 24,
                     child: Text(
-                      count.toString(),
+                      total.toString(),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                     ),
                   ),
                 );
               }).toList(),
-              DataCell(
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    totalCount.toString(),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
             ],
-          );
-        }).toList(),
+          ),
+        ],
       ),
     );
   }
@@ -446,91 +460,92 @@ class _StudentSummaryScreenState extends State<StudentSummaryScreen> {
         title: const Text('Resumen de Asistencia por Estudiante'),
         backgroundColor: primaryColor,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildFilterControls(),
-              const SizedBox(height: 16),
-              _buildStudentDropdown(),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Fecha inicio:', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
-                        TextButton(
-                          onPressed: _pickStartDate,
-                          child: Text(DateFormat('dd/MM/yyyy').format(_startDate)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Fecha fin:', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
-                        TextButton(
-                          onPressed: _pickEndDate,
-                          child: Text(DateFormat('dd/MM/yyyy').format(_endDate)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 16,
-                runSpacing: 8,
-                children: attendanceLabels.entries.map((entry) {
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: Color(entry.value['color']),
-                          shape: BoxShape.circle,
-                        ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildFilterControls(),
+                const SizedBox(height: 16),
+                _buildStudentDropdown(),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Fecha inicio:', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+                          TextButton(
+                            onPressed: _pickStartDate,
+                            child: Text(DateFormat('dd/MM/yyyy').format(_startDate)),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(entry.value['description']),
-                    ],
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Totales de asistencia por asignatura',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
-              ),
-              const SizedBox(height: 12),
-              // Horizontal scroll for wide table
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: _attendanceDetail.isEmpty
-                    ? const Center(child: Text('No hay datos para los filtros seleccionados.'))
-                    : _buildAttendanceTotalsTable(),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Gráfico de asistencia',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
-              ),
-              const SizedBox(height: 12),
-              _buildAttendancePieChart(),
-              const SizedBox(height: 24),
-            ],
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Fecha fin:', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+                          TextButton(
+                            onPressed: _pickEndDate,
+                            child: Text(DateFormat('dd/MM/yyyy').format(_endDate)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: attendanceLabels.entries.map((entry) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: Color(entry.value['color']),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(entry.value['description']),
+                      ],
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Totales de asistencia por asignatura',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: _attendanceDetail.isEmpty
+                      ? const Center(child: Text('No hay datos para los filtros seleccionados.'))
+                      : _buildAttendanceTotalsTable(),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Gráfico de asistencia',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
+                ),
+                const SizedBox(height: 12),
+                _buildAttendancePieChart(),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),
