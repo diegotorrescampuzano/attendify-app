@@ -25,16 +25,10 @@ class ReportScreen extends StatelessWidget {
       routeName: '/studentSummary', // add this route here
     ),
     _ReportCardData(
-      title: 'Resumen de Asistencia por Asignatura',
-      description: 'Resumen de asistencias por asignatura en un rango de fechas.',
-      icon: FontAwesomeIcons.bookOpen,
-      routeName: '',
-    ),
-    _ReportCardData(
       title: 'Asistencia por Salón',
       description: 'Estadísticas de asistencia para un salón o grupo específico.',
       icon: FontAwesomeIcons.chalkboardTeacher,
-      routeName: '',
+      routeName: '/homeroomSummary',
     ),
     _ReportCardData(
       title: 'Patrones de Ausencia',
