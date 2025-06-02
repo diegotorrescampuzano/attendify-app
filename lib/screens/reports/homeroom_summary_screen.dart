@@ -61,7 +61,7 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
 
   void _onCriteriaChanged() {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
+    _debounce = Timer(const Duration(milliseconds: 2000), () {
       final currentText = _criteriaController.text.trim();
       if (currentText == _filterValue) return;
       setState(() {
@@ -192,6 +192,14 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
   Widget _buildAttendanceTable() {
     final labels = attendanceLabels.keys.toList();
 
+    // Calculate totals per attendance label
+    final Map<String, int> grandTotals = {};
+    for (final counts in _attendanceTotals.values) {
+      for (final label in labels) {
+        grandTotals[label] = (grandTotals[label] ?? 0) + (counts[label] ?? 0);
+      }
+    }
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
@@ -222,37 +230,63 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
             );
           }).toList(),
         ],
-        rows: _studentsMap.entries.map((entry) {
-          final studentId = entry.key;
-          final student = entry.value;
-          final counts = _attendanceTotals[studentId] ?? {};
-          return DataRow(
-            cells: [
-              DataCell(
-                SizedBox(
-                  width: 150,
-                  child: Text(
-                    student['name'] ?? '',
-                    overflow: TextOverflow.ellipsis,
+        rows: [
+          ..._studentsMap.entries.map((entry) {
+            final studentId = entry.key;
+            final student = entry.value;
+            final counts = _attendanceTotals[studentId] ?? {};
+            return DataRow(
+              cells: [
+                DataCell(
+                  SizedBox(
+                    width: 150,
+                    child: Text(
+                      student['name'] ?? '',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                ),
+                ...labels.map((label) {
+                  final count = counts[label] ?? 0;
+                  return DataCell(
+                    SizedBox(
+                      width: 24,
+                      child: Text(
+                        count.toString(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ],
+            );
+          }),
+          DataRow(
+            color: MaterialStateProperty.all(primaryColor.withOpacity(0.15)),
+            cells: [
+              const DataCell(
+                Text(
+                  'Total',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
               ...labels.map((label) {
-                final count = counts[label] ?? 0;
+                final total = grandTotals[label] ?? 0;
                 return DataCell(
                   SizedBox(
                     width: 24,
                     child: Text(
-                      count.toString(),
+                      total.toString(),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                     ),
                   ),
                 );
               }).toList(),
             ],
-          );
-        }).toList(),
+          ),
+        ],
       ),
     );
   }
