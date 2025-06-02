@@ -51,8 +51,8 @@ class _HomeScreenState extends State<HomeScreen> {
               snapshot.data!['name'],
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: Colors.black54,
+                fontSize: 20,
+                color: Colors.black87,
               ),
               textAlign: TextAlign.center,
             );
@@ -63,35 +63,71 @@ class _HomeScreenState extends State<HomeScreen> {
         return Container(
           color: const Color(0xFFF0F0E3),
           padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                'assets/images/attendify_logo.png',
-                height: 180,
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                '¡Bienvenido a Attendify!',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF53A09D),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: SingleChildScrollView(  // <-- Wrap with scroll view
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/images/attendify_logo.png',
+                      height: 160,
+                    ),
+                    const SizedBox(height: 32),
+                    const Text(
+                      '¡Bienvenido a Attendify!',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF53A09D),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Con esta aplicación podrás registrar y gestionar la asistencia de tus estudiantes de forma rápida, segura y eficiente.',
+                      style: TextStyle(fontSize: 18, color: Colors.black54),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 40),
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                        child: Column(
+                          children: [
+                            logoWidget,
+                            const SizedBox(height: 12),
+                            nameWidget,
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    SizedBox(
+                      width: 220,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF53A09D),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 6,
+                        ),
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/attendance');
+                        },
+                        child: const Text(
+                          'Tomar Asistencia',
+                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Con esta aplicación podrás registrar y gestionar la asistencia de tus estudiantes de forma rápida, segura y eficiente.',
-                style: TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              // Mostrar logo y nombre del colegio al final
-              logoWidget,
-              const SizedBox(height: 8),
-              nameWidget,
-            ],
+            ),
           ),
         );
       },
