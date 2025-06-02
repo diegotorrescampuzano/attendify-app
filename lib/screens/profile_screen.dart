@@ -13,13 +13,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
 
+  static const Color backgroundColor = Color(0xFFF0F0E3);
+  static const Color primaryColor = Color(0xFF53A09D);
+
   @override
   void initState() {
     super.initState();
     _loadUserProfile();
   }
 
-  // Fetch user profile data from Firestore
   Future<void> _loadUserProfile() async {
     final data = await FirestoreService.getUserProfile();
     setState(() {
@@ -28,68 +30,114 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  Widget _buildProfileField({required IconData icon, required String label, required String value}) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+        child: Row(
+          children: [
+            Icon(icon, color: primaryColor, size: 28),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: Colors.black54,
+                      )),
+                  const SizedBox(height: 4),
+                  Text(value,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      )),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const backgroundColor = Color(0xFFF0F0E3);
-    const primaryColor = Color(0xFF53A09D);
-
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         title: const Text('Perfil'),
         backgroundColor: primaryColor,
       ),
-      body: Container(
-        color: backgroundColor,
-        padding: const EdgeInsets.all(16),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _userData == null
-            ? const Center(child: Text('No se pudieron cargar los datos del usuario.'))
-            : Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _userData == null
+          ? const Center(child: Text('No se pudieron cargar los datos del usuario.'))
+          : SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
           children: [
-            // Profile Icon Placeholder
-            const CircleAvatar(
-              radius: 60,
+            CircleAvatar(
+              radius: 70,
               backgroundColor: primaryColor,
-              child: Icon(Icons.person, size: 60, color: Colors.white),
+              child: Icon(
+                Icons.person,
+                size: 80,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(height: 24),
-
-            // User's Name
             Text(
               _userData!['name'] ?? 'Nombre no disponible',
               style: const TextStyle(
-                fontSize: 22,
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: primaryColor,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-
-            // User's Email
-            Text(
-              _userData!['email'] ?? 'Correo no disponible',
-              style: const TextStyle(fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-
-            // User's Role (if available)
             if (_userData!['role'] != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                margin: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: primaryColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: primaryColor),
                 ),
                 child: Text(
                   _userData!['role'],
-                  style: const TextStyle(color: primaryColor),
+                  style: TextStyle(
+                    color: primaryColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
                 ),
               ),
+            const SizedBox(height: 12),
+            _buildProfileField(
+              icon: Icons.email_outlined,
+              label: 'Correo electrónico',
+              value: _userData!['email'] ?? 'Correo no disponible',
+            ),
+            _buildProfileField(
+              icon: Icons.phone_outlined,
+              label: 'Teléfono',
+              value: _userData!['phone'] ?? 'No disponible',
+            ),
+            _buildProfileField(
+              icon: Icons.school_outlined,
+              label: 'Rol',
+              value: _userData!['role'] ?? 'No disponible',
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),
