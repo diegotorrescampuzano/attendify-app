@@ -1,159 +1,200 @@
-// Import Flutter's material UI library
 import 'package:flutter/material.dart';
 
-// Import our custom authentication logic
 import '../services/auth_service.dart';
-
-// Import FirestoreService to fetch user data after login
 import '../services/firestore_service.dart';
 
-// The login screen is a StatefulWidget because it has dynamic behavior (loading, error messages, etc.)
+const Color primaryColor = Color(0xFF53A09D);
+const Color secondaryColor = Color(0xFF607D8B);
+const Color backgroundColor = Color(0xFFF0F0E3);
+const Color textOnPrimary = Color(0xFFF3E9DC);
+
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key}); // Constructor with optional key
+  const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState(); // Create the widget's state
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-// This class holds the mutable state of the LoginScreen
 class _LoginScreenState extends State<LoginScreen> {
-  // Controller to read the email input field
   final TextEditingController _emailController = TextEditingController();
-
-  // Controller to read the password input field
   final TextEditingController _passwordController = TextEditingController();
 
-  // Boolean to track whether login is in progress
   bool _loading = false;
-
-  // Optional error message to show if login fails
   String? _error;
+  bool _isButtonEnabled = false;
+  bool _obscurePassword = true;
 
-  // Method to handle login logic
+  @override
+  void initState() {
+    super.initState();
+    _emailController.addListener(_validateForm);
+    _passwordController.addListener(_validateForm);
+  }
+
+  @override
+  void dispose() {
+    _emailController.removeListener(_validateForm);
+    _passwordController.removeListener(_validateForm);
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _validateForm() {
+    final isEmailNotEmpty = _emailController.text.trim().isNotEmpty;
+    final isPasswordNotEmpty = _passwordController.text.isNotEmpty;
+    final shouldEnable = isEmailNotEmpty && isPasswordNotEmpty;
+
+    if (_isButtonEnabled != shouldEnable) {
+      setState(() {
+        _isButtonEnabled = shouldEnable;
+      });
+    }
+  }
+
   Future<void> _login() async {
-    // Update UI to show loading and reset previous error
     setState(() {
       _loading = true;
       _error = null;
     });
 
-    // Get trimmed values from input fields
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    // Call the login function from AuthService
     final result = await AuthService.login(email, password);
 
-    // Once login completes, update loading state and error message
-    setState(() {
-      _loading = false;
-      _error = result; // Will be null if login is successful
-    });
-
-    // If login succeeded (no error), navigate to the home screen
     if (result == null) {
-      print("Login successful, fetching user profile...");
-
-      // 👇 Aquí cargamos los datos del usuario desde Firestore
       final userData = await FirestoreService.getUserProfile();
-
-      // Puedes imprimir el refId para depuración
       print("Usuario autenticado con refId: ${userData?['refId']}");
 
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = result;
+      });
     }
   }
 
-  // Build the login screen UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Inicio de sesión')), // Top bar with title
-      body: SingleChildScrollView( // To prevent overflow on small screens
-        child: Padding(
-          padding: const EdgeInsets.all(20), // Add padding around form
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
-            children: [
-              // Attendify logo at the top
-              Image.asset(
-                'assets/images/attendify_logo.png',
-                height: 120,
-              ),
-              const SizedBox(height: 20),
-
-              // Friendly welcome text for teachers
-              const Text(
-                'Bienvenido a Attendify',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF53a09d), // Primary app color
+      backgroundColor: secondaryColor,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 420),
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'La app diseñada para que los docentes realicen la asistencia de forma fácil y rápida.',
-                style: TextStyle(fontSize: 16, color: Colors.black87),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 30),
-
-              // If there's an error, show it as red text
-              if (_error != null) ...[
-                Text(
-                  _error!,
-                  style: const TextStyle(color: Colors.red),
-                ),
-                const SizedBox(height: 10), // Add spacing after error
               ],
-              // Email input field
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Correo electrónico',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/images/attendify_logo.png',
+                  height: 100,
                 ),
-              ),
-              const SizedBox(height: 16),
-
-              // Password input field (obscureText hides characters)
-              TextField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Contraseña',
-                  prefixIcon: Icon(Icons.lock),
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 24),
+                const Text(
+                  'Bienvenido a Attendify',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20), // Space before button
-              // Show loading spinner or login button depending on state
-              _loading
-                  ? const CircularProgressIndicator()
-                  : SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _login, // Call _login when tapped
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: const Color(0xFF53a09d), // Primary app color
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 8),
+                const Text(
+                  'La app diseñada para que los docentes realicen la asistencia de forma fácil y rápida.',
+                  style: TextStyle(fontSize: 16, color: Colors.black87),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 28),
+                if (_error != null) ...[
+                  Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                TextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Correo electrónico',
+                    prefixIcon: const Icon(Icons.email, color: primaryColor),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: primaryColor, width: 2),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Iniciar sesión',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Color(0xFFF3E9DC), // Segundo color corporativo claro para texto
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Contraseña',
+                    prefixIcon: const Icon(Icons.lock, color: primaryColor),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: primaryColor, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: primaryColor,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isButtonEnabled && !_loading ? _login : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isButtonEnabled ? primaryColor : Colors.grey.shade400,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 6,
+                      shadowColor: primaryColor.withOpacity(0.5),
+                    ),
+                    child: _loading
+                        ? const CircularProgressIndicator(color: textOnPrimary)
+                        : const Text(
+                      'Iniciar sesión',
+                      style: TextStyle(fontSize: 18, color: textOnPrimary, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

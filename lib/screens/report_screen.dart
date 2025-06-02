@@ -37,12 +37,6 @@ class ReportScreen extends StatelessWidget {
       routeName: '/patternSummary',
     ),
     _ReportCardData(
-      title: 'Asistencia por Periodo',
-      description: 'Asistencia agrupada por periodos o franjas horarias.',
-      icon: FontAwesomeIcons.clock,
-      routeName: '',
-    ),
-    _ReportCardData(
       title: 'Registros Pendientes por Docente',
       description: 'Lista de registros de asistencia que aún no han sido completados por docentes.',
       icon: FontAwesomeIcons.clipboardList,
