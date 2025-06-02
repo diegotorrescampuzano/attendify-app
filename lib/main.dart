@@ -26,6 +26,9 @@ import 'screens/attendance_screen.dart';
 // Import the new teacher summary report screen
 import 'screens/reports/teacher_summary_screen.dart';
 
+// Import the new student summary report screen
+import 'screens/reports/student_summary_screen.dart';
+
 // The entry point of the application — must be `main()` in Dart
 void main() async {
   // Ensures that Flutter is fully initialized before we use platform channels or Firebase
@@ -76,6 +79,8 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const ReportScreen());
           case '/teacherSummary':
             return MaterialPageRoute(builder: (_) => const TeacherSummaryScreen());
+          case '/studentSummary':
+            return MaterialPageRoute(builder: (_) => const StudentSummaryScreen());
           case '/credits':
             return MaterialPageRoute(builder: (_) => CreditsScreen());
           case '/educationalLevel':
