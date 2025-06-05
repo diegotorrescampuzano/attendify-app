@@ -1,14 +1,16 @@
 // Importaciones
 import 'dart:convert'; // Para decodificar base64
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../widgets/app_drawer.dart';
 import '../screens/campus_screen.dart';
 import '../screens/report_screen.dart';
 import '../screens/profile_screen.dart';
 import '../widgets/bottom_navbar.dart';
-import '../services/home_service.dart'; // Importamos el nuevo servicio
-import '../services/dashboard_service.dart';
+import '../services/home_service.dart';
+import '../services/dashboard/campus_attendance_service.dart';
+import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,11 +25,73 @@ class _HomeScreenState extends State<HomeScreen> {
   late Future<Map<String, dynamic>> _schoolFuture;
   late Future<List<Map<String, dynamic>>> _dashboardFuture;
 
+  // Store campus names for display
+  List<String> _campusNames = [];
+
   @override
   void initState() {
     super.initState();
     _schoolFuture = HomeService.getSchoolData();
-    _dashboardFuture = DashboardService.getAttendanceSummaryByGrade();
+    _dashboardFuture = _loadDashboardForTeacher();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadDashboardForTeacher() async {
+    final userData = AuthService.currentUserData;
+    if (userData == null) return [];
+    final teacherRefId = userData['refId'];
+    if (teacherRefId == null) return [];
+
+    final teacherData = await DashboardService.getTeacherDataByRefId(teacherRefId);
+    if (teacherData == null) return [];
+
+    final assignedCampusesRefs = teacherData['assignedCampuses'] as List<dynamic>? ?? [];
+    if (assignedCampusesRefs.isEmpty) return [];
+
+    List<Map<String, dynamic>> combinedSummary = [];
+    List<String> campusNames = [];
+
+    for (var campusRef in assignedCampusesRefs) {
+      String campusId;
+      if (campusRef is DocumentReference) {
+        campusId = campusRef.id;
+      } else if (campusRef is String) {
+        campusId = campusRef;
+      } else {
+        continue;
+      }
+
+      // Fetch campus name for display
+      final campusDoc = await FirebaseFirestore.instance.collection('campuses').doc(campusId).get();
+      if (campusDoc.exists) {
+        final campusName = campusDoc.data()?['name'] ?? campusId;
+        campusNames.add(campusName);
+      } else {
+        campusNames.add(campusId);
+      }
+
+      final campusSummary = await DashboardService.getAttendanceSummaryByGradeFilteredByCampus(campusId);
+      combinedSummary.addAll(campusSummary);
+    }
+
+    // Store campus names to state for UI
+    setState(() {
+      _campusNames = campusNames;
+    });
+
+    // Group by gradeId to merge duplicates
+    Map<String, Map<String, dynamic>> grouped = {};
+    for (var item in combinedSummary) {
+      final gradeId = item['gradeId'] as String;
+      if (!grouped.containsKey(gradeId)) {
+        grouped[gradeId] = Map<String, dynamic>.from(item);
+      } else {
+        grouped[gradeId]!['expected'] += item['expected'] as int;
+        grouped[gradeId]!['asiste'] += item['asiste'] as int;
+        grouped[gradeId]!['conNovedad'] += item['conNovedad'] as int;
+      }
+    }
+
+    return grouped.values.toList();
   }
 
   void _onItemTapped(int index) {
@@ -110,7 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final summary = snapshot.data!;
 
-        // Totales generales
         int totalAsiste = 0;
         int totalConNovedad = 0;
         for (var g in summary) {
@@ -121,6 +184,15 @@ class _HomeScreenState extends State<HomeScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_campusNames.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Text(
+                  'Resumen de asistencia para campus: ${_campusNames.join(", ")}',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF53A09D)),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
               child: Text(
@@ -183,7 +255,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Crea la página de bienvenida con logo y nombre del colegio
   Widget _buildWelcomePage() {
     return FutureBuilder<Map<String, dynamic>>(
       future: _schoolFuture,
@@ -259,24 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 40),
                     _buildDashboardSection(),
                     const SizedBox(height: 40),
-                    SizedBox(
-                      width: 220,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF53A09D),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 6,
-                        ),
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/attendance');
-                        },
-                        child: const Text(
-                          'Tomar Asistencia',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
-                      ),
-                    ),
+                    // Removed the "Tomar Asistencia" button as requested
                   ],
                 ),
               ),
