@@ -1,46 +1,165 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Service to fetch homerooms enriched with lecture details and related metadata.
+/// It extracts homerooms from today's lectures and fetches additional fields:
+/// campusId, educationalLevelId, gradeId, students list,
+/// and also fetches the corresponding names from campuses, educationalLevels, and grades collections.
+/// This data is necessary to pass along in the flow for attendance and other features.
 class HomeroomService {
-  // Existing method
-  static Future<List<Map<String, dynamic>>> getHomeroomsFromReferences(List<dynamic> references) async {
-    List<Map<String, dynamic>> homerooms = [];
+  static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-    for (var ref in references) {
-      if (ref is DocumentReference) {
-        final snapshot = await ref.get();
-        if (snapshot.exists) {
-          final data = snapshot.data() as Map<String, dynamic>;
-          homerooms.add({
-            'id': snapshot.id,
-            'name': data['name'],
-            'description': data['description'],
-            'students': data['students'], // Lista de estudiantes
-            'subjects': data['subjects'], // Lista de asignaturas
-          });
+  /// Fetches homerooms with lecture details and additional metadata including names
+  /// from the provided [lecturesForToday] map.
+  static Future<List<Map<String, dynamic>>> getHomeroomsWithLectureDetails(
+      Map<String, dynamic> lecturesForToday) async {
+    try {
+      final homeroomMap = <String, Map<String, dynamic>>{};
+
+      // Iterate over all lectures for today (key is weekday, value is list of lectures)
+      for (final dayLectures in lecturesForToday.values) {
+        if (dayLectures is List) {
+          for (final lecture in dayLectures) {
+            final homeroomRef = lecture['homeroom'];
+            if (homeroomRef is DocumentReference) {
+              final homeroomId = homeroomRef.id;
+
+              // Avoid processing duplicates
+              if (!homeroomMap.containsKey(homeroomId)) {
+                final homeroomSnap = await homeroomRef.get();
+                if (!homeroomSnap.exists) {
+                  print('HomeroomService: Homeroom document $homeroomId does not exist');
+                  continue;
+                }
+                final homeroomData = homeroomSnap.data() as Map<String, dynamic>;
+
+                // Fetch subject name and id from subject reference if available
+                String subjectName = '';
+                String? subjectId;
+                final subjectRef = lecture['subject'];
+                if (subjectRef is DocumentReference) {
+                  subjectId = subjectRef.id;
+                  final subjectSnap = await subjectRef.get();
+                  if (subjectSnap.exists) {
+                    final subjectData = subjectSnap.data() as Map<String, dynamic>;
+                    subjectName = subjectData['name'] ?? '';
+                  } else {
+                    print('HomeroomService: Subject document ${subjectRef.id} does not exist');
+                  }
+                }
+
+                // Extract references from homeroom document
+                final campusRef = homeroomData['campusId'];
+                final educationalLevelRef = homeroomData['educationalLevelId'];
+                final gradeRef = homeroomData['gradeId'];
+                final studentsList = homeroomData['students'] as List<dynamic>? ?? [];
+
+                // Convert slot (int) to string for consistent usage
+                final slotValue = lecture['slot'];
+                final slotString = slotValue != null ? slotValue.toString() : '';
+
+                // Initialize names as empty strings
+                String campusName = '';
+                String educationalLevelName = '';
+                String gradeName = '';
+
+                // Fetch campus name
+                if (campusRef is DocumentReference) {
+                  final campusSnap = await _db.collection('campuses').doc(campusRef.id).get();
+                  if (campusSnap.exists) {
+                    campusName = (campusSnap.data() as Map<String, dynamic>)['name'] ?? '';
+                  } else {
+                    print('HomeroomService: Campus document ${campusRef.id} does not exist');
+                  }
+                }
+
+                // Fetch educational level name
+                if (educationalLevelRef is DocumentReference) {
+                  final eduLevelSnap = await _db.collection('educationalLevels').doc(educationalLevelRef.id).get();
+                  if (eduLevelSnap.exists) {
+                    educationalLevelName = (eduLevelSnap.data() as Map<String, dynamic>)['name'] ?? '';
+                  } else {
+                    print('HomeroomService: EducationalLevel document ${educationalLevelRef.id} does not exist');
+                  }
+                }
+
+                // Fetch grade name
+                if (gradeRef is DocumentReference) {
+                  final gradeSnap = await _db.collection('grades').doc(gradeRef.id).get();
+                  if (gradeSnap.exists) {
+                    gradeName = (gradeSnap.data() as Map<String, dynamic>)['name'] ?? '';
+                  } else {
+                    print('HomeroomService: Grade document ${gradeRef.id} does not exist');
+                  }
+                }
+
+                homeroomMap[homeroomId] = {
+                  'id': homeroomId,
+                  'name': homeroomData['name'] ?? 'Sin nombre',
+                  'description': homeroomData['description'] ?? '',
+                  'slot': slotString, // Converted to string
+                  'subjectName': subjectName,
+                  'subjectId': subjectId,
+                  'time': lecture['time'] ?? '',
+                  'ref': homeroomRef,
+                  'campusId': campusRef is DocumentReference ? campusRef.id : null,
+                  'campusName': campusName,
+                  'educationalLevelId': educationalLevelRef is DocumentReference ? educationalLevelRef.id : null,
+                  'educationalLevelName': educationalLevelName,
+                  'gradeId': gradeRef is DocumentReference ? gradeRef.id : null,
+                  'gradeName': gradeName,
+                  'students': studentsList,
+                };
+
+                print('HomeroomService: Added homeroom $homeroomId with subject "$subjectName", '
+                    'campus "$campusName", educational level "$educationalLevelName", grade "$gradeName"');
+              }
+            }
+          }
         }
       }
-    }
 
-    return homerooms;
+      print('HomeroomService: Returning ${homeroomMap.length} homerooms with full details');
+      return homeroomMap.values.toList();
+    } catch (e) {
+      print('HomeroomService: Error fetching homerooms with lecture details: $e');
+      return [];
+    }
   }
 
-  // New method to fetch students by homeroom reference
+  /// Fetches students for a given homeroom reference.
+  /// Returns a list of student maps with their data.
   static Future<List<Map<String, dynamic>>> getStudentsFromHomeroom(DocumentReference homeroomRef) async {
     try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('students')
-          .where('homeroom', isEqualTo: homeroomRef)
-          .get();
+      final homeroomSnap = await homeroomRef.get();
+      if (!homeroomSnap.exists) {
+        print('HomeroomService: Homeroom ${homeroomRef.id} does not exist');
+        return [];
+      }
+      final homeroomData = homeroomSnap.data() as Map<String, dynamic>;
+      final studentsRefs = homeroomData['students'] as List<dynamic>? ?? [];
 
-      return querySnapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          ...data,
-        };
-      }).toList();
+      print('HomeroomService: Found ${studentsRefs.length} student references in homeroom ${homeroomRef.id}');
+
+      // Fetch each student document by reference
+      final students = <Map<String, dynamic>>[];
+      for (final ref in studentsRefs) {
+        if (ref is DocumentReference) {
+          final studentSnap = await ref.get();
+          if (studentSnap.exists) {
+            final data = studentSnap.data() as Map<String, dynamic>;
+            students.add({
+              'id': studentSnap.id,
+              ...data,
+            });
+          } else {
+            print('HomeroomService: Student document ${ref.id} does not exist');
+          }
+        }
+      }
+      print('HomeroomService: Returning ${students.length} students for homeroom ${homeroomRef.id}');
+      return students;
     } catch (e) {
-      print('Error fetching students by homeroom: $e');
+      print('HomeroomService: Error fetching students for homeroom ${homeroomRef.id}: $e');
       return [];
     }
   }

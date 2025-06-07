@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/homeroom_service.dart';
 
+/// Screen that displays the list of homerooms for the selected campus
+/// showing lecture details for today's schedule.
 class HomeroomScreen extends StatefulWidget {
   final Map<String, dynamic> campus;
-  final Map<String, dynamic> educationalLevel;
-  final Map<String, dynamic> grade;
 
   const HomeroomScreen({
     super.key,
     required this.campus,
-    required this.educationalLevel,
-    required this.grade,
   });
 
   @override
@@ -18,26 +16,45 @@ class HomeroomScreen extends StatefulWidget {
 }
 
 class _HomeroomScreenState extends State<HomeroomScreen> {
-  List<DocumentReference> homeroomRefs = [];
+  late Future<List<Map<String, dynamic>>> _homeroomsFuture;
 
   @override
   void initState() {
     super.initState();
-    homeroomRefs = (widget.grade['homerooms'] as List).cast<DocumentReference>();
+    // Fetch homerooms enriched with today's lecture details from the campus data
+    _homeroomsFuture = HomeroomService.getHomeroomsWithLectureDetails(
+      widget.campus['lecturesForToday'] ?? {},
+    );
   }
 
-  void _onHomeroomSelected(Map<String, dynamic> homeroomData, String homeroomId) {
+  /// Navigates to the attendance screen with the selected homeroom and all required arguments
+  void _onHomeroomSelected(Map<String, dynamic> homeroom) {
+    // Prepare arguments for attendance screen
     Navigator.pushNamed(
       context,
-      '/subject', // o el nombre real de tu ruta para llamar al screen para seleccionar la asignatura
+      '/attendance',
       arguments: {
-        'campus': widget.campus,
-        'educationalLevel': widget.educationalLevel,
-        'grade': widget.grade,
-        'homeroom': {
-          ...homeroomData,
-          'id': homeroomId,
+        'campus': {
+          'id': homeroom['campusId'],
+          'name': homeroom['campusName'],
         },
+        'educationalLevel': {
+          'id': homeroom['educationalLevelId'],
+          'name': homeroom['educationalLevelName'],
+        },
+        'grade': {
+          'id': homeroom['gradeId'],
+          'name': homeroom['gradeName'],
+        },
+        'homeroom': homeroom,
+        'subject': {
+          'id': homeroom['subjectId'],
+          'name': homeroom['subjectName'],
+        },
+        // Pass slot, time, and current date for attendance
+        'selectedTime': homeroom['time'],
+        'selectedDate': DateTime.now(),
+        'slot': homeroom['slot']?.toString() ?? '', // Pass slot as string
       },
     );
   }
@@ -47,11 +64,11 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0E3),
       appBar: AppBar(
-        title: const Text('Selecciona el salón'),
+        title: Text(widget.campus['name']),
         backgroundColor: const Color(0xFF53A09D),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -68,7 +85,7 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Selecciona el salón de clase correspondiente al grado escolar para registrar la asistencia de los estudiantes.',
+                        'Selecciona el salón de clase donde deseas registrar la asistencia.',
                         style: TextStyle(fontSize: 16),
                       ),
                     ),
@@ -76,56 +93,43 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
                 ),
               ),
             ),
-
-            Text(
-              widget.campus['name'] ?? '',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              widget.educationalLevel['name'] ?? '',
-              style: const TextStyle(fontSize: 18),
-            ),
-            Text(
-              widget.grade['name'] ?? '',
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-
-            const Text(
-              'Salones disponibles:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 10),
-
             Expanded(
-              child: ListView.builder(
-                itemCount: homeroomRefs.length,
-                itemBuilder: (context, index) {
-                  final ref = homeroomRefs[index];
-                  return FutureBuilder<DocumentSnapshot>(
-                    future: ref.get(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const ListTile(title: Text('Cargando...'));
-                      } else if (snapshot.hasError) {
-                        return const ListTile(title: Text('Error al cargar salón'));
-                      } else if (!snapshot.hasData || !snapshot.data!.exists) {
-                        return const ListTile(title: Text('Salón no disponible'));
-                      }
-
-                      final data = snapshot.data!.data() as Map<String, dynamic>;
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: _homeroomsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return const Center(child: Text('Error cargando salones'));
+                  }
+                  final homerooms = snapshot.data!;
+                  if (homerooms.isEmpty) {
+                    return const Center(child: Text('No hay salones disponibles para hoy.'));
+                  }
+                  return ListView.builder(
+                    itemCount: homerooms.length,
+                    itemBuilder: (context, index) {
+                      final homeroom = homerooms[index];
                       return Card(
                         elevation: 2,
+                        margin: const EdgeInsets.symmetric(vertical: 6),
                         child: ListTile(
-                          title: Text(data['name'] ?? 'Sin nombre'),
-                          subtitle: Text(data['description'] ?? ''),
-                          trailing: const Icon(Icons.chevron_right),
                           leading: const Icon(Icons.meeting_room, color: Color(0xFF53A09D)),
-                          onTap: () => _onHomeroomSelected({
-                            ...data,
-                            'ref': snapshot.data!.reference,
-                          }, snapshot.data!.id),
+                          title: Text(homeroom['name']),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if ((homeroom['subjectName'] ?? '').isNotEmpty)
+                                Text('Asignatura: ${homeroom['subjectName']}'),
+                              if ((homeroom['slot'] ?? '').toString().isNotEmpty)
+                                Text('Slot: ${homeroom['slot']}'),
+                              if ((homeroom['time'] ?? '').toString().isNotEmpty)
+                                Text('Horario: ${homeroom['time']}'),
+                            ],
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => _onHomeroomSelected(homeroom),
                         ),
                       );
                     },

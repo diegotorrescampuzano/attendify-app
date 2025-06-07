@@ -7,14 +7,24 @@ import '../services/attendance_service.dart';
 import '../services/auth_service.dart';
 import '../services/homeroom_service.dart';
 
+const Map<String, Map<String, dynamic>> attendanceLabels = {
+  'A': {'description': 'Asiste', 'color': Color(0xFF4CAF50)},
+  'T': {'description': 'Tarde', 'color': Color(0xFFFF9800)},
+  'E': {'description': 'Evasión', 'color': Color(0xFFF44336)},
+  'I': {'description': 'Inasistencia', 'color': Colors.black54},
+  'IJ': {'description': 'Inasistencia Justificada', 'color': Color(0xFF607D8B)},
+  'P': {'description': 'Retiro con acudiente', 'color': Color(0xFF9C27B0)},
+};
+
 class AttendanceScreen extends StatefulWidget {
   final Map<String, dynamic> campus;
   final Map<String, dynamic> educationalLevel;
   final Map<String, dynamic> grade;
-  final Map<String, dynamic> homeroom; // Must include 'id' and 'ref'
-  final Map<String, dynamic> subject; // Must include 'id' and 'name'
+  final Map<String, dynamic> homeroom;
+  final Map<String, dynamic> subject;
   final DateTime selectedDate;
-  final String selectedTime; // e.g., "07:30 AM"
+  final String selectedTime;
+  final String slot;
 
   const AttendanceScreen({
     super.key,
@@ -25,6 +35,7 @@ class AttendanceScreen extends StatefulWidget {
     required this.subject,
     required this.selectedDate,
     required this.selectedTime,
+    required this.slot,
   });
 
   @override
@@ -32,27 +43,21 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-  // Corporate colors for consistent styling
   static const Color backgroundColor = Color(0xFFF0F0E3);
   static const Color primaryColor = Color(0xFF53A09D);
 
   final AttendanceService _attendanceService = AttendanceService();
 
-  // Future to load students asynchronously
   late Future<List<Map<String, dynamic>>> _studentsFuture;
 
-  // Maps to store attendance labels and notes keyed by student ID
   Map<String, String> _attendanceMap = {};
   Map<String, String> _attendanceNotes = {};
 
-  // Loading state for save button
   bool _loadingSave = false;
 
-  // Teacher info from authentication service
   String? _teacherId;
   String? _teacherName;
 
-  // Generate document ID for attendance record
   String get _docId => _attendanceService.generateDocId(
     homeroomId: widget.homeroom['id'],
     subjectId: widget.subject['id'],
@@ -63,30 +68,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    // Load students from homeroom reference
     _studentsFuture = HomeroomService.getStudentsFromHomeroom(widget.homeroom['ref']);
-    // Get teacher data from authentication service
     final userData = AuthService.currentUserData;
     _teacherId = userData?['refId'];
     _teacherName = userData?['name'];
     if (_teacherId == null || _teacherName == null) {
       print('Warning: Teacher info missing in AuthService.currentUserData');
     }
-    // Load existing attendance data if any
     _loadExistingAttendance();
   }
 
-  /// Loads existing attendance and notes for the current attendance document
   Future<void> _loadExistingAttendance() async {
     final attendanceData = await _attendanceService.loadFullAttendance(_docId);
     setState(() {
-      // Map student IDs to attendance labels and notes
       _attendanceMap = attendanceData.map((id, map) => MapEntry(id, map['label'] ?? ''));
       _attendanceNotes = attendanceData.map((id, map) => MapEntry(id, map['notes'] ?? ''));
     });
   }
 
-  /// Saves the current attendance and notes to the backend
   Future<void> _saveAttendance() async {
     if (_teacherId == null || _teacherName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -98,7 +97,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _loadingSave = true;
     });
 
-    // Prepare general info about the attendance record
     final generalInfo = {
       'campusId': widget.campus['id'],
       'campusName': widget.campus['name'],
@@ -110,10 +108,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       'homeroomName': widget.homeroom['name'],
       'subjectId': widget.subject['id'],
       'subjectName': widget.subject['name'],
+      'slot': widget.slot,  // Include slot info when saving
     };
 
     try {
-      // Call service to save attendance data
       await _attendanceService.saveFullAttendance(
         docId: _docId,
         generalInfo: generalInfo,
@@ -140,7 +138,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  /// Handles change of attendance label for a student
   void _onAttendanceChanged(String studentId, String newLabel) async {
     setState(() {
       _attendanceMap[studentId] = newLabel;
@@ -149,7 +146,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     await _saveAttendance();
   }
 
-  /// Shows a dialog to edit or add a note for a student
   Future<void> _editNoteDialog(String studentId, String studentName) async {
     String tempNote = _attendanceNotes[studentId] ?? '';
     final controller = TextEditingController(text: tempNote);
@@ -167,11 +163,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, null), // Cancel editing
+              onPressed: () => Navigator.pop(context, null),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, controller.text.trim()), // Save note
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
               child: const Text('Guardar'),
             ),
           ],
@@ -188,37 +184,30 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  /// Opens WhatsApp with a pre-filled message to the given phone number
   Future<void> _openWhatsApp(String phone, String message) async {
     final encodedMessage = Uri.encodeComponent(message);
     final cleanedPhone = phone.replaceAll(RegExp(r'[\s\-\(\)\+]'), '');
     final whatsappUrl = Uri.parse('https://api.whatsapp.com/send?phone=$cleanedPhone&text=$encodedMessage');
     try {
-      // Launch WhatsApp URL using platform default mode
       await launchUrl(whatsappUrl, mode: LaunchMode.platformDefault);
     } catch (e) {
-      // Show error if WhatsApp cannot be opened
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo abrir WhatsApp')),
       );
     }
   }
 
-  /// Initiates a phone call to the given phone number
   Future<void> _makePhoneCall(String phone) async {
     final telUrl = Uri.parse('tel:$phone');
     try {
-      // Launch phone dialer
       await launchUrl(telUrl, mode: LaunchMode.platformDefault);
     } catch (e) {
-      // Show error if call cannot be initiated
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo iniciar la llamada')),
       );
     }
   }
 
-  /// Shows confirmation dialog to finalize attendance registration
   void _confirmFinishAttendance() {
     showDialog(
       context: context,
@@ -228,13 +217,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           content: const Text('¿Estás seguro de finalizar el registro?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(), // Close dialog on No
+              onPressed: () => Navigator.of(context).pop(),
               child: const Text('No'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close dialog on Yes
-                // Navigate to home screen and clear navigation stack
+                Navigator.of(context).pop();
                 Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
               },
               child: const Text('Sí'),
@@ -250,7 +238,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Registro de Asistencia'),
+        title: Text(
+          'Asistencia - ${widget.homeroom['name']} - ${widget.subject['name']}',
+        ),
         backgroundColor: primaryColor,
         actions: [
           IconButton(
@@ -267,7 +257,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Display general info about the attendance session
             Text('Campus: ${widget.campus['name']}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
             Text('Nivel Educativo: ${widget.educationalLevel['name']}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
             Text('Grado: ${widget.grade['name']}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
@@ -275,6 +264,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             Text('Asignatura: ${widget.subject['name']}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
             Text('Fecha: ${DateFormat('dd/MM/yyyy').format(widget.selectedDate)}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
             Text('Hora: ${widget.selectedTime}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
+            if (widget.slot.isNotEmpty)
+              Text('Slot: ${widget.slot}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
             const SizedBox(height: 16),
             const Divider(),
             const Text(
@@ -283,21 +274,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ),
             const SizedBox(height: 8),
 
-            // Expanded list of students with attendance controls
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: _studentsFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    // Show loading spinner while fetching students
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.hasError) {
-                    // Show error message if loading fails
                     return Center(child: Text('Error: ${snapshot.error}'));
                   }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    // Show message if no students found
                     return const Center(child: Text('No se encontraron estudiantes.'));
                   }
                   final students = snapshot.data!;
@@ -319,7 +306,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // First row: person icon, student name, note button, WhatsApp button
                               Row(
                                 children: [
                                   Icon(Icons.person, color: primaryColor, size: 28),
@@ -355,10 +341,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                   ),
                                 ],
                               ),
-
                               const SizedBox(height: 4),
-
-                              // Second row: phone icon + tappable phone number to make call
                               GestureDetector(
                                 onTap: phone.isEmpty
                                     ? null
@@ -378,41 +361,38 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                   ],
                                 ),
                               ),
-
                               const SizedBox(height: 8),
-
-                              // Third row: attendance dropdown full width
-                              DropdownButton<String>(
-                                value: (currentLabel != null && currentLabel.isNotEmpty) ? currentLabel : null,
-                                hint: const Text('Seleccione el estado'),
-                                isExpanded: true,
-                                items: attendanceLabels.entries.map((entry) {
-                                  final label = entry.key;
-                                  final desc = entry.value['description'] as String;
-                                  final color = entry.value['color'] as Color;
-                                  return DropdownMenuItem<String>(
-                                    value: label,
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 14,
-                                          height: 14,
-                                          margin: const EdgeInsets.only(right: 8),
-                                          decoration: BoxDecoration(
-                                            color: color,
-                                            shape: BoxShape.circle,
+                              Row(
+                                children: [
+                                  const Text('Asistencia: ', style: TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      value: currentLabel.isNotEmpty ? currentLabel : null,
+                                      hint: const Text('Selecciona'),
+                                      items: attendanceLabels.entries.map((entry) {
+                                        final label = entry.key;
+                                        final labelInfo = entry.value;
+                                        return DropdownMenuItem<String>(
+                                          value: label,
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.circle, color: labelInfo['color'], size: 16),
+                                              const SizedBox(width: 8),
+                                              Text('${labelInfo['description']} ($label)'),
+                                            ],
                                           ),
-                                        ),
-                                        Text(desc),
-                                      ],
+                                        );
+                                      }).toList(),
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          _onAttendanceChanged(studentId, newValue);
+                                        }
+                                      },
                                     ),
-                                  );
-                                }).toList(),
-                                onChanged: (newLabel) {
-                                  if (newLabel != null) {
-                                    _onAttendanceChanged(studentId, newLabel);
-                                  }
-                                },
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -423,22 +403,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 },
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Button to finalize attendance registration with corporate style
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
+            Center(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.check),
+                label: const Text('Finalizar Registro'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor, // your corporate teal
-                  foregroundColor: Colors.white, // text color explicitly white
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: primaryColor, // your primary corporate color
+                  foregroundColor: Colors.white, // set text/icon color explicitly
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  textStyle: const TextStyle(fontSize: 18),
                 ),
                 onPressed: _confirmFinishAttendance,
-                child: const Text('Finalizar registro de asistencia'),
               ),
             ),
           ],

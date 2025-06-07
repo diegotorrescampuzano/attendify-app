@@ -107,13 +107,9 @@ class MyApp extends StatelessWidget {
               ),
             );
           case '/homeroom':
-            final args = settings.arguments as Map<String, dynamic>;
+            final campus = settings.arguments as Map<String, dynamic>;
             return MaterialPageRoute(
-              builder: (_) => HomeroomScreen(
-                campus: args['campus'],
-                educationalLevel: args['educationalLevel'],
-                grade: args['grade'],
-              ),
+              builder: (_) => HomeroomScreen(campus: campus),
             );
           case '/subject':
             final args = settings.arguments as Map<String, dynamic>;
@@ -136,6 +132,7 @@ class MyApp extends StatelessWidget {
                 subject: args['subject'],
                 selectedDate: args['selectedDate'],
                 selectedTime: args['selectedTime'],
+                slot: args['slot'],
               ),
             );
           default:
