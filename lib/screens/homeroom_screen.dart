@@ -48,12 +48,13 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
         },
         'homeroom': homeroom,
         'subject': {
-          'id': homeroom['subjectId'],  // Now correctly included
+          'id': homeroom['subjectId'],
           'name': homeroom['subjectName'],
         },
         // Pass slot, time, and current date for attendance
         'selectedTime': homeroom['time'],
         'selectedDate': DateTime.now(),
+        'slot': homeroom['slot']?.toString() ?? '', // Pass slot as string
       },
     );
   }

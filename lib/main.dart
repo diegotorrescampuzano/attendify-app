@@ -132,6 +132,7 @@ class MyApp extends StatelessWidget {
                 subject: args['subject'],
                 selectedDate: args['selectedDate'],
                 selectedTime: args['selectedTime'],
+                slot: args['slot'],
               ),
             );
           default:

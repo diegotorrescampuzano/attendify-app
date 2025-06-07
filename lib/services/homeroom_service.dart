@@ -53,6 +53,10 @@ class HomeroomService {
                 final gradeRef = homeroomData['gradeId'];
                 final studentsList = homeroomData['students'] as List<dynamic>? ?? [];
 
+                // Convert slot (int) to string for consistent usage
+                final slotValue = lecture['slot'];
+                final slotString = slotValue != null ? slotValue.toString() : '';
+
                 // Initialize names as empty strings
                 String campusName = '';
                 String educationalLevelName = '';
@@ -92,9 +96,9 @@ class HomeroomService {
                   'id': homeroomId,
                   'name': homeroomData['name'] ?? 'Sin nombre',
                   'description': homeroomData['description'] ?? '',
-                  'slot': lecture['slot'] ?? '',
+                  'slot': slotString, // Converted to string
                   'subjectName': subjectName,
-                  'subjectId': subjectId, // Added subjectId here
+                  'subjectId': subjectId,
                   'time': lecture['time'] ?? '',
                   'ref': homeroomRef,
                   'campusId': campusRef is DocumentReference ? campusRef.id : null,

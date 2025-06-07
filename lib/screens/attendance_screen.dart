@@ -24,6 +24,7 @@ class AttendanceScreen extends StatefulWidget {
   final Map<String, dynamic> subject;
   final DateTime selectedDate;
   final String selectedTime;
+  final String slot;
 
   const AttendanceScreen({
     super.key,
@@ -34,6 +35,7 @@ class AttendanceScreen extends StatefulWidget {
     required this.subject,
     required this.selectedDate,
     required this.selectedTime,
+    required this.slot,
   });
 
   @override
@@ -106,6 +108,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       'homeroomName': widget.homeroom['name'],
       'subjectId': widget.subject['id'],
       'subjectName': widget.subject['name'],
+      'slot': widget.slot,  // Include slot info when saving
     };
 
     try {
@@ -235,7 +238,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Registro de Asistencia'),
+        title: Text(
+          'Asistencia - ${widget.homeroom['name']} - ${widget.subject['name']}',
+        ),
         backgroundColor: primaryColor,
         actions: [
           IconButton(
@@ -259,6 +264,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             Text('Asignatura: ${widget.subject['name']}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
             Text('Fecha: ${DateFormat('dd/MM/yyyy').format(widget.selectedDate)}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
             Text('Hora: ${widget.selectedTime}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
+            if (widget.slot.isNotEmpty)
+              Text('Slot: ${widget.slot}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
             const SizedBox(height: 16),
             const Divider(),
             const Text(
@@ -402,7 +409,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 icon: const Icon(Icons.check),
                 label: const Text('Finalizar Registro'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
+                  backgroundColor: primaryColor, // your primary corporate color
+                  foregroundColor: Colors.white, // set text/icon color explicitly
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                   textStyle: const TextStyle(fontSize: 18),
                 ),
