@@ -30,7 +30,7 @@ class _CampusScreenState extends State<CampusScreen> {
 
     // If the refId exists, fetch campuses; otherwise return an empty list
     _campusesFuture = _refId != null
-        ? CampusService.getCampusesForTeacher(_refId!)
+        ? CampusService.getCampusesAndLecturesForTeacher(_refId!)
         : Future.value([]);
   }
 
