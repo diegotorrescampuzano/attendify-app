@@ -11,6 +11,18 @@ class ReportScreen extends StatelessWidget {
   // Define report data model
   static final List<_ReportCardData> _reports = [
     _ReportCardData(
+      title: 'Registros Pendientes por Docente',
+      description: 'Lista de registros de asistencia que aún no han sido completados por docentes.',
+      icon: FontAwesomeIcons.clipboardList,
+      routeName: '/outstandingRegister',
+    ),
+    _ReportCardData(
+      title: 'Horario de Docentes',
+      description: 'Visualiza los horarios semanales de los docentes por campus y selecciona uno o varios para ver sus clases y bloques libres.',
+      icon: FontAwesomeIcons.calendarAlt,
+      routeName: '/scheduleSummary',
+    ),
+    _ReportCardData(
       title: 'Resumen de Asistencias por Docente',
       description:
       'Cantidad de asistencias registradas por el docente en un rango de fechas, agrupadas por tipo y asignatura.',
@@ -35,12 +47,6 @@ class ReportScreen extends StatelessWidget {
       description: 'Identificación de estudiantes con ausencias continuas o frecuentes.',
       icon: FontAwesomeIcons.exclamationTriangle,
       routeName: '/patternSummary',
-    ),
-    _ReportCardData(
-      title: 'Registros Pendientes por Docente',
-      description: 'Lista de registros de asistencia que aún no han sido completados por docentes.',
-      icon: FontAwesomeIcons.clipboardList,
-      routeName: '/outstandingRegister',
     ),
   ];
 
