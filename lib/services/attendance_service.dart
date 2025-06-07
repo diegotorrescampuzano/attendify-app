@@ -53,7 +53,22 @@ class AttendanceService {
     required String teacherName,
     required List<Map<String, dynamic>> students,
   }) async {
-    final timestamp = Timestamp.now();
+    final now = Timestamp.now();
+
+    // Get existing document to check if it's a creation or update
+    final docRef = _db.collection('attendances').doc(docId);
+    final docSnap = await docRef.get();
+
+    bool isNewDocument = !docSnap.exists;
+
+    // Try to preserve existing createdAt if updating
+    Timestamp? existingCreatedAt;
+    Map<String, dynamic>? existingAttendanceRecords;
+    if (!isNewDocument) {
+      final data = docSnap.data();
+      existingCreatedAt = data?['createdAt'] as Timestamp?;
+      existingAttendanceRecords = data?['attendanceRecords'] as Map<String, dynamic>?;
+    }
 
     bool offTheClock = false;
     try {
@@ -62,12 +77,12 @@ class AttendanceService {
         final start = slotParts[0].trim();
         final end = slotParts[1].trim();
         final format = DateFormat('HH:mm');
-        final now = DateTime.now();
+        final nowDateTime = DateTime.now();
 
         final startTime = format.parse(start);
         final endTime = format.parse(end);
 
-        final nowMinutes = now.hour * 60 + now.minute;
+        final nowMinutes = nowDateTime.hour * 60 + nowDateTime.minute;
         final slotStartMinutes = startTime.hour * 60 + startTime.minute;
         final slotEndMinutes = endTime.hour * 60 + endTime.minute;
 
@@ -86,14 +101,25 @@ class AttendanceService {
             (s) => s['id'] == studentId,
         orElse: () => {'name': 'Nombre no disponible'},
       );
+
+      // Preserve createdAt for each student attendance record if exists
+      Timestamp? studentCreatedAt;
+      if (existingAttendanceRecords != null && existingAttendanceRecords.containsKey(studentId)) {
+        final existingRecord = existingAttendanceRecords[studentId] as Map<String, dynamic>?;
+        if (existingRecord != null && existingRecord['createdAt'] is Timestamp) {
+          studentCreatedAt = existingRecord['createdAt'] as Timestamp;
+        }
+      }
+
       attendanceRecords[studentId] = {
         'label': label,
         'studentName': student['name'],
         'labelDescription': labelInfo['description'],
         'labelColor': labelInfo['color'].value.toRadixString(16).padLeft(8, '0'),
         'notes': notesMap[studentId] ?? '',
-        'timestamp': timestamp,
         'offTheClock': offTheClock,
+        'createdAt': studentCreatedAt ?? now,
+        'updatedAt': now,
       };
     });
 
@@ -105,13 +131,13 @@ class AttendanceService {
       ...generalInfo,
       'teacherId': teacherId,
       'teacherName': teacherName,
-      'offTheClock': offTheClock, // <-- Added here at root level
+      'offTheClock': offTheClock,
       'attendanceRecords': attendanceRecords,
-      'createdAt': timestamp,
-      'updatedAt': timestamp,
+      'createdAt': existingCreatedAt ?? now,
+      'updatedAt': now,
     };
 
-    print('AttendanceService: Saving attendance for docId $docId, offTheClock: $offTheClock');
-    await _db.collection('attendances').doc(docId).set(dataToSave);
+    print('AttendanceService: Saving attendance for docId $docId, offTheClock: $offTheClock, isNew: $isNewDocument');
+    await docRef.set(dataToSave);
   }
 }

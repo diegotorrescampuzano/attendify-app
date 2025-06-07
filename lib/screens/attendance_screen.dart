@@ -116,10 +116,23 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final docRef = FirebaseFirestore.instance.collection('attendances').doc(_docId);
     final doc = await docRef.get();
 
-    if (!doc.exists) {
-      // Document does not exist - create default attendance record with empty data
-      final timestamp = Timestamp.now();
+    final students = await _studentsFuture;
 
+    if (!doc.exists) {
+      // Determine default label for all students
+      final defaultLabel = students.length > 10 ? 'A' : 'I';
+
+      // Initialize attendance map with default labels
+      final Map<String, String> initialAttendanceMap = {
+        for (var student in students) student['id'] ?? student['ref']?.id ?? '': defaultLabel,
+      };
+
+      // Initialize notes map with "registro creado por defecto"
+      final Map<String, String> initialNotesMap = {
+        for (var student in students) student['id'] ?? student['ref']?.id ?? '': 'registro creado por defecto',
+      };
+
+      // Prepare general info for saving
       final generalInfo = {
         'campusId': widget.campus['id'],
         'campusName': widget.campus['name'],
@@ -134,19 +147,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         'slot': widget.slot,
       };
 
-      final dataToSave = {
-        'date': Timestamp.fromDate(DateTime(widget.selectedDate.year, widget.selectedDate.month, widget.selectedDate.day)),
-        'time': widget.selectedTime,
-        ...generalInfo,
-        'teacherId': _teacherId ?? '',
-        'teacherName': _teacherName ?? '',
-        'offTheClock': false,
-        'attendanceRecords': {}, // empty attendance records
-        'createdAt': timestamp,
-        'updatedAt': timestamp,
-      };
-
-      await docRef.set(dataToSave);
+      // Save the initial attendance record with defaults and notes
+      await _attendanceService.saveFullAttendance(
+        docId: _docId,
+        generalInfo: generalInfo,
+        attendanceMap: initialAttendanceMap,
+        notesMap: initialNotesMap,
+        date: widget.selectedDate,
+        timeSlot: widget.selectedTime,
+        teacherId: _teacherId ?? '',
+        teacherName: _teacherName ?? '',
+        students: students,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -154,19 +166,33 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         );
       }
 
-      // Initialize empty attendance maps
+      // Update the UI state with the initialized attendance and notes
       setState(() {
-        _attendanceMap = {};
-        _attendanceNotes = {};
+        _attendanceMap = initialAttendanceMap;
+        _attendanceNotes = initialNotesMap;
       });
     } else {
-      // Document exists, load attendance data
+      // Existing document logic (unchanged)
       final data = doc.data()!;
       final attendanceRecords = data['attendanceRecords'] as Map<String, dynamic>? ?? {};
 
+      final Map<String, String> loadedAttendanceMap = {};
+      final Map<String, String> loadedNotesMap = {};
+
+      for (var student in students) {
+        final studentId = student['id'] ?? student['ref']?.id ?? '';
+        if (attendanceRecords.containsKey(studentId)) {
+          loadedAttendanceMap[studentId] = attendanceRecords[studentId]['label'] ?? '';
+          loadedNotesMap[studentId] = attendanceRecords[studentId]['notes'] ?? '';
+        } else {
+          loadedAttendanceMap[studentId] = students.length > 10 ? 'A' : 'I';
+          loadedNotesMap[studentId] = '';
+        }
+      }
+
       setState(() {
-        _attendanceMap = attendanceRecords.map((id, record) => MapEntry(id, record['label'] ?? ''));
-        _attendanceNotes = attendanceRecords.map((id, record) => MapEntry(id, record['notes'] ?? ''));
+        _attendanceMap = loadedAttendanceMap;
+        _attendanceNotes = loadedNotesMap;
       });
     }
   }
