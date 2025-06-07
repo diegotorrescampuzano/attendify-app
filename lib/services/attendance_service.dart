@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-/// Attendance labels with descriptions and colors
 const Map<String, Map<String, dynamic>> attendanceLabels = {
   'A': {'description': 'Asiste', 'color': Color(0xFF4CAF50)},
   'T': {'description': 'Tarde', 'color': Color(0xFFFF9800)},
@@ -15,7 +14,6 @@ const Map<String, Map<String, dynamic>> attendanceLabels = {
 class AttendanceService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Generates a unique document ID for attendance based on homeroom, subject, date, and time
   String generateDocId({
     required String homeroomId,
     required String subjectId,
@@ -29,8 +27,6 @@ class AttendanceService {
     return '${homeroomId}_${subjectId}_${dateStr}_${timeClean}';
   }
 
-  /// Loads attendance records including notes from Firestore.
-  /// Returns a map of studentId -> {'label': String, 'notes': String}
   Future<Map<String, Map<String, String>>> loadFullAttendance(String docId) async {
     final doc = await _db.collection('attendances').doc(docId).get();
     if (!doc.exists) return {};
@@ -45,35 +41,48 @@ class AttendanceService {
     });
   }
 
-  /// Saves attendance records including notes to Firestore.
-  /// Adds 'offTheClock' attribute if registration is out of the scheduled slot.
+  /// Now requires a students list to save student names
   Future<void> saveFullAttendance({
     required String docId,
     required Map<String, dynamic> generalInfo,
-    required Map<String, String> attendanceMap, // studentId -> label
-    required Map<String, String> notesMap,      // studentId -> notes
+    required Map<String, String> attendanceMap,
+    required Map<String, String> notesMap,
     required DateTime date,
     required String timeSlot,
     required String teacherId,
     required String teacherName,
+    required List<Map<String, dynamic>> students,
   }) async {
-    final timestamp = Timestamp.now();
+    final now = Timestamp.now();
 
-    // Determine if registration is off the scheduled time slot
+    // Get existing document to check if it's a creation or update
+    final docRef = _db.collection('attendances').doc(docId);
+    final docSnap = await docRef.get();
+
+    bool isNewDocument = !docSnap.exists;
+
+    // Try to preserve existing createdAt if updating
+    Timestamp? existingCreatedAt;
+    Map<String, dynamic>? existingAttendanceRecords;
+    if (!isNewDocument) {
+      final data = docSnap.data();
+      existingCreatedAt = data?['createdAt'] as Timestamp?;
+      existingAttendanceRecords = data?['attendanceRecords'] as Map<String, dynamic>?;
+    }
+
     bool offTheClock = false;
     try {
-      // Parse slot, e.g., "07:00 - 08:00"
       final slotParts = timeSlot.split('-');
       if (slotParts.length == 2) {
         final start = slotParts[0].trim();
         final end = slotParts[1].trim();
         final format = DateFormat('HH:mm');
-        final now = DateTime.now();
+        final nowDateTime = DateTime.now();
 
         final startTime = format.parse(start);
         final endTime = format.parse(end);
 
-        final nowMinutes = now.hour * 60 + now.minute;
+        final nowMinutes = nowDateTime.hour * 60 + nowDateTime.minute;
         final slotStartMinutes = startTime.hour * 60 + startTime.minute;
         final slotEndMinutes = endTime.hour * 60 + endTime.minute;
 
@@ -88,13 +97,29 @@ class AttendanceService {
     final attendanceRecords = <String, Map<String, dynamic>>{};
     attendanceMap.forEach((studentId, label) {
       final labelInfo = attendanceLabels[label] ?? attendanceLabels['A']!;
+      final student = students.firstWhere(
+            (s) => s['id'] == studentId,
+        orElse: () => {'name': 'Nombre no disponible'},
+      );
+
+      // Preserve createdAt for each student attendance record if exists
+      Timestamp? studentCreatedAt;
+      if (existingAttendanceRecords != null && existingAttendanceRecords.containsKey(studentId)) {
+        final existingRecord = existingAttendanceRecords[studentId] as Map<String, dynamic>?;
+        if (existingRecord != null && existingRecord['createdAt'] is Timestamp) {
+          studentCreatedAt = existingRecord['createdAt'] as Timestamp;
+        }
+      }
+
       attendanceRecords[studentId] = {
         'label': label,
+        'studentName': student['name'],
         'labelDescription': labelInfo['description'],
         'labelColor': labelInfo['color'].value.toRadixString(16).padLeft(8, '0'),
         'notes': notesMap[studentId] ?? '',
-        'timestamp': timestamp,
-        'offTheClock': offTheClock, // Mark if out of scheduled slot
+        'offTheClock': offTheClock,
+        'createdAt': studentCreatedAt ?? now,
+        'updatedAt': now,
       };
     });
 
@@ -106,12 +131,13 @@ class AttendanceService {
       ...generalInfo,
       'teacherId': teacherId,
       'teacherName': teacherName,
+      'offTheClock': offTheClock,
       'attendanceRecords': attendanceRecords,
-      'createdAt': timestamp,
-      'updatedAt': timestamp,
+      'createdAt': existingCreatedAt ?? now,
+      'updatedAt': now,
     };
 
-    print('AttendanceService: Saving attendance for docId $docId, offTheClock: $offTheClock');
-    await _db.collection('attendances').doc(docId).set(dataToSave);
+    print('AttendanceService: Saving attendance for docId $docId, offTheClock: $offTheClock, isNew: $isNewDocument');
+    await docRef.set(dataToSave);
   }
 }
