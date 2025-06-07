@@ -40,7 +40,7 @@ class ReportScreen extends StatelessWidget {
       title: 'Registros Pendientes por Docente',
       description: 'Lista de registros de asistencia que aún no han sido completados por docentes.',
       icon: FontAwesomeIcons.clipboardList,
-      routeName: '',
+      routeName: '/outstandingRegister',
     ),
   ];
 
