@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-/// Attendance labels with descriptions and colors
 const Map<String, Map<String, dynamic>> attendanceLabels = {
   'A': {'description': 'Asiste', 'color': Color(0xFF4CAF50)},
   'T': {'description': 'Tarde', 'color': Color(0xFFFF9800)},
@@ -15,7 +14,6 @@ const Map<String, Map<String, dynamic>> attendanceLabels = {
 class AttendanceService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Generates a unique document ID for attendance based on homeroom, subject, date, and time
   String generateDocId({
     required String homeroomId,
     required String subjectId,
@@ -29,8 +27,6 @@ class AttendanceService {
     return '${homeroomId}_${subjectId}_${dateStr}_${timeClean}';
   }
 
-  /// Loads attendance records including notes from Firestore.
-  /// Returns a map of studentId -> {'label': String, 'notes': String}
   Future<Map<String, Map<String, String>>> loadFullAttendance(String docId) async {
     final doc = await _db.collection('attendances').doc(docId).get();
     if (!doc.exists) return {};
@@ -45,24 +41,22 @@ class AttendanceService {
     });
   }
 
-  /// Saves attendance records including notes to Firestore.
-  /// Adds 'offTheClock' attribute if registration is out of the scheduled slot.
+  /// Now requires a students list to save student names
   Future<void> saveFullAttendance({
     required String docId,
     required Map<String, dynamic> generalInfo,
-    required Map<String, String> attendanceMap, // studentId -> label
-    required Map<String, String> notesMap,      // studentId -> notes
+    required Map<String, String> attendanceMap,
+    required Map<String, String> notesMap,
     required DateTime date,
     required String timeSlot,
     required String teacherId,
     required String teacherName,
+    required List<Map<String, dynamic>> students,
   }) async {
     final timestamp = Timestamp.now();
 
-    // Determine if registration is off the scheduled time slot
     bool offTheClock = false;
     try {
-      // Parse slot, e.g., "07:00 - 08:00"
       final slotParts = timeSlot.split('-');
       if (slotParts.length == 2) {
         final start = slotParts[0].trim();
@@ -88,13 +82,18 @@ class AttendanceService {
     final attendanceRecords = <String, Map<String, dynamic>>{};
     attendanceMap.forEach((studentId, label) {
       final labelInfo = attendanceLabels[label] ?? attendanceLabels['A']!;
+      final student = students.firstWhere(
+            (s) => s['id'] == studentId,
+        orElse: () => {'name': 'Nombre no disponible'},
+      );
       attendanceRecords[studentId] = {
         'label': label,
+        'studentName': student['name'],
         'labelDescription': labelInfo['description'],
         'labelColor': labelInfo['color'].value.toRadixString(16).padLeft(8, '0'),
         'notes': notesMap[studentId] ?? '',
         'timestamp': timestamp,
-        'offTheClock': offTheClock, // Mark if out of scheduled slot
+        'offTheClock': offTheClock,
       };
     });
 
@@ -106,6 +105,7 @@ class AttendanceService {
       ...generalInfo,
       'teacherId': teacherId,
       'teacherName': teacherName,
+      'offTheClock': offTheClock, // <-- Added here at root level
       'attendanceRecords': attendanceRecords,
       'createdAt': timestamp,
       'updatedAt': timestamp,

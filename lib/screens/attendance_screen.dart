@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -49,6 +50,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   final AttendanceService _attendanceService = AttendanceService();
 
   late Future<List<Map<String, dynamic>>> _studentsFuture;
+  List<Map<String, dynamic>> _students = [];
 
   Map<String, String> _attendanceMap = {};
   Map<String, String> _attendanceNotes = {};
@@ -57,6 +59,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   String? _teacherId;
   String? _teacherName;
+
+  bool _offTheClock = false;
 
   String get _docId => _attendanceService.generateDocId(
     homeroomId: widget.homeroom['id'],
@@ -69,21 +73,102 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   void initState() {
     super.initState();
     _studentsFuture = HomeroomService.getStudentsFromHomeroom(widget.homeroom['ref']);
+    _studentsFuture.then((students) => _students = students);
     final userData = AuthService.currentUserData;
     _teacherId = userData?['refId'];
     _teacherName = userData?['name'];
     if (_teacherId == null || _teacherName == null) {
       print('Warning: Teacher info missing in AuthService.currentUserData');
     }
+    _checkOffTheClock();
     _loadExistingAttendance();
   }
 
+  void _checkOffTheClock() {
+    try {
+      final slotParts = widget.slot.split('-');
+      if (slotParts.length == 2) {
+        final start = slotParts[0].trim();
+        final end = slotParts[1].trim();
+        final format = DateFormat('HH:mm');
+        final now = DateTime.now();
+
+        final startTime = format.parse(start);
+        final endTime = format.parse(end);
+
+        final nowMinutes = now.hour * 60 + now.minute;
+        final slotStartMinutes = startTime.hour * 60 + startTime.minute;
+        final slotEndMinutes = endTime.hour * 60 + endTime.minute;
+
+        setState(() {
+          _offTheClock = nowMinutes < slotStartMinutes || nowMinutes > slotEndMinutes;
+        });
+      }
+    } catch (e) {
+      print('AttendanceScreen: Error parsing slot time for offTheClock check: $e');
+      setState(() {
+        _offTheClock = false;
+      });
+    }
+  }
+
   Future<void> _loadExistingAttendance() async {
-    final attendanceData = await _attendanceService.loadFullAttendance(_docId);
-    setState(() {
-      _attendanceMap = attendanceData.map((id, map) => MapEntry(id, map['label'] ?? ''));
-      _attendanceNotes = attendanceData.map((id, map) => MapEntry(id, map['notes'] ?? ''));
-    });
+    final docRef = FirebaseFirestore.instance.collection('attendances').doc(_docId);
+    final doc = await docRef.get();
+
+    if (!doc.exists) {
+      // Document does not exist - create default attendance record with empty data
+      final timestamp = Timestamp.now();
+
+      final generalInfo = {
+        'campusId': widget.campus['id'],
+        'campusName': widget.campus['name'],
+        'educationalLevelId': widget.educationalLevel['id'],
+        'educationalLevelName': widget.educationalLevel['name'],
+        'gradeId': widget.grade['id'],
+        'gradeName': widget.grade['name'],
+        'homeroomId': widget.homeroom['id'],
+        'homeroomName': widget.homeroom['name'],
+        'subjectId': widget.subject['id'],
+        'subjectName': widget.subject['name'],
+        'slot': widget.slot,
+      };
+
+      final dataToSave = {
+        'date': Timestamp.fromDate(DateTime(widget.selectedDate.year, widget.selectedDate.month, widget.selectedDate.day)),
+        'time': widget.selectedTime,
+        ...generalInfo,
+        'teacherId': _teacherId ?? '',
+        'teacherName': _teacherName ?? '',
+        'offTheClock': false,
+        'attendanceRecords': {}, // empty attendance records
+        'createdAt': timestamp,
+        'updatedAt': timestamp,
+      };
+
+      await docRef.set(dataToSave);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Se ha creado por defecto el registro de asistencia')),
+        );
+      }
+
+      // Initialize empty attendance maps
+      setState(() {
+        _attendanceMap = {};
+        _attendanceNotes = {};
+      });
+    } else {
+      // Document exists, load attendance data
+      final data = doc.data()!;
+      final attendanceRecords = data['attendanceRecords'] as Map<String, dynamic>? ?? {};
+
+      setState(() {
+        _attendanceMap = attendanceRecords.map((id, record) => MapEntry(id, record['label'] ?? ''));
+        _attendanceNotes = attendanceRecords.map((id, record) => MapEntry(id, record['notes'] ?? ''));
+      });
+    }
   }
 
   Future<void> _saveAttendance() async {
@@ -108,8 +193,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       'homeroomName': widget.homeroom['name'],
       'subjectId': widget.subject['id'],
       'subjectName': widget.subject['name'],
-      'slot': widget.slot,  // Include slot info when saving
+      'slot': widget.slot,
     };
+
+    // Ensure students list is loaded before saving
+    final students = _students.isNotEmpty ? _students : await _studentsFuture;
 
     try {
       await _attendanceService.saveFullAttendance(
@@ -121,6 +209,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         timeSlot: widget.selectedTime,
         teacherId: _teacherId!,
         teacherName: _teacherName!,
+        students: students,
       );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Asistencia guardada correctamente')),
@@ -266,14 +355,28 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             Text('Hora: ${widget.selectedTime}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
             if (widget.slot.isNotEmpty)
               Text('Slot: ${widget.slot}', style: const TextStyle(fontSize: 16, color: Colors.black87)),
-            const SizedBox(height: 16),
+            if (_offTheClock)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  children: const [
+                    Icon(Icons.warning, color: Colors.redAccent),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '¡Estás a punto de registrar asistencia fuera de la hora de la clase!',
+                        style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const Divider(),
             const Text(
               'Selecciona el estado de asistencia para cada estudiante y agrega notas si es necesario:',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: _studentsFuture,
@@ -409,8 +512,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 icon: const Icon(Icons.check),
                 label: const Text('Finalizar Registro'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor, // your primary corporate color
-                  foregroundColor: Colors.white, // set text/icon color explicitly
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                   textStyle: const TextStyle(fontSize: 18),
                 ),
