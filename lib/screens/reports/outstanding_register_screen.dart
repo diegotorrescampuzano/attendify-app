@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../../services/reports/outstanding_register_service.dart';
 
@@ -12,6 +13,10 @@ class OutstandingRegisterScreen extends StatefulWidget {
 }
 
 class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
+  // Corporate colors
+  static const Color backgroundColor = Color(0xFFF0F0E3);
+  static const Color primaryColor = Color(0xFF53A09D);
+
   final OutstandingRegisterService _service = OutstandingRegisterService();
 
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 7));
@@ -109,6 +114,16 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
       initialDate: _startDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.light(
+            primary: primaryColor,
+            onPrimary: Colors.white,
+            onSurface: Colors.black,
+          ),
+        ),
+        child: child!,
+      ),
     );
     if (picked != null && picked != _startDate) {
       setState(() {
@@ -127,6 +142,16 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
       initialDate: _endDate,
       firstDate: _startDate,
       lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.light(
+            primary: primaryColor,
+            onPrimary: Colors.white,
+            onSurface: Colors.black,
+          ),
+        ),
+        child: child!,
+      ),
     );
     if (picked != null && picked != _endDate) {
       setState(() {
@@ -150,6 +175,132 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
           fontWeight: FontWeight.bold,
         ),
       ),
+    );
+  }
+
+  /// Generate a unique color for each campus, based on its name hash.
+  Color _campusColor(String campusId) {
+    // Use a fixed list of beautiful colors for up to 10 campuses
+    const presetColors = [
+      Color(0xFF53A09D), // primaryColor
+      Color(0xFF7CB342), // green
+      Color(0xFF42A5F5), // blue
+      Color(0xFFFBC02D), // yellow
+      Color(0xFFEF5350), // red
+      Color(0xFFAB47BC), // purple
+      Color(0xFFFFA726), // orange
+      Color(0xFF8D6E63), // brown
+      Color(0xFF26A69A), // teal
+      Color(0xFF5C6BC0), // indigo
+    ];
+    final idx = campusId.hashCode.abs() % presetColors.length;
+    return presetColors[idx];
+  }
+
+  /// Build the pie chart for outstanding registers per campus.
+  Widget _buildCampusPieChart() {
+    // Count outstanding per campus
+    final campusCounts = <String, int>{};
+    for (final item in _outstanding) {
+      campusCounts[item.campus] = (campusCounts[item.campus] ?? 0) + 1;
+    }
+    final total = campusCounts.values.fold<int>(0, (a, b) => a + b);
+
+    print('Pie chart data: $campusCounts, total: $total');
+
+    if (total == 0) {
+      return const Center(child: Text('No hay datos para mostrar en el gráfico.'));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Registros pendientes por campus',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: primaryColor,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 220,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 40,
+              sections: campusCounts.entries.map((entry) {
+                final campusId = entry.key;
+                final count = entry.value;
+                final percentage = (count / total) * 100;
+                final campusName = campusNames[campusId] ?? campusId;
+                return PieChartSectionData(
+                  color: _campusColor(campusId),
+                  value: count.toDouble(),
+                  title: '${percentage.toStringAsFixed(1)}%',
+                  radius: 55,
+                  titleStyle: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  badgeWidget: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        campusName,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      Text(
+                        '$count',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                  badgePositionPercentageOffset: 1.3,
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 16,
+          runSpacing: 6,
+          children: campusCounts.keys.map((campusId) {
+            final campusName = campusNames[campusId] ?? campusId;
+            final count = campusCounts[campusId]!;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: _campusColor(campusId),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '$campusName: $count',
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
@@ -223,35 +374,97 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
     );
   }
 
-  /// Build the date range picker row.
-  Widget _buildDateRangePicker() {
+  /// Build the date range pickers, each with its own header and icon.
+  Widget _buildDateRangeHeaderAndPicker() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        // Desde
         Expanded(
-          child: TextButton.icon(
-            icon: const Icon(Icons.calendar_today),
-            label: Text(
-              'Desde: ${DateFormat('yyyy-MM-dd').format(_startDate)}',
-              overflow: TextOverflow.ellipsis,
-            ),
-            onPressed: _pickStartDate,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, color: primaryColor, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Desde',
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: _pickStartDate,
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  side: BorderSide(color: primaryColor, width: 1),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: Text(
+                  DateFormat('yyyy-MM-dd').format(_startDate),
+                  style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 16),
+        // Hasta
         Expanded(
-          child: TextButton.icon(
-            icon: const Icon(Icons.calendar_today),
-            label: Text(
-              'Hasta: ${DateFormat('yyyy-MM-dd').format(_endDate)}',
-              overflow: TextOverflow.ellipsis,
-            ),
-            onPressed: _pickEndDate,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, color: primaryColor, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Hasta',
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: _pickEndDate,
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  side: BorderSide(color: primaryColor, width: 1),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: Text(
+                  DateFormat('yyyy-MM-dd').format(_endDate),
+                  style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 16),
         ElevatedButton(
           onPressed: _loading ? null : _loadOutstanding,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
           child: const Text('Cargar'),
         ),
       ],
@@ -261,7 +474,9 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
+        backgroundColor: primaryColor,
         title: const Text('Registro Pendiente de Asistencia'),
         centerTitle: true,
       ),
@@ -269,8 +484,10 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildDateRangePicker(),
-            const SizedBox(height: 16),
+            _buildDateRangeHeaderAndPicker(),
+            const SizedBox(height: 24),
+            if (_outstanding.isNotEmpty) _buildCampusPieChart(),
+            const SizedBox(height: 24),
             Expanded(child: _buildOutstandingTable()),
           ],
         ),
