@@ -41,6 +41,7 @@ class ScheduleSummaryService {
   }
 
   /// Fetch teacher lectures for the given campus and teacher IDs.
+  /// Relationships are by teacherId, but teacherName is returned for UI.
   Future<List<Map<String, dynamic>>> fetchTeacherLectures({
     required String campusId,
     required List<String> teacherIds,
@@ -51,21 +52,28 @@ class ScheduleSummaryService {
         .where('campus', isEqualTo: _db.doc('campuses/$campusId'))
         .get();
 
+    // Build a lookup for teacherId -> name
+    final teacherDocs = await _db.collection('teachers')
+        .where(FieldPath.documentId, whereIn: teacherIds)
+        .get();
+    final teacherIdToName = {
+      for (var doc in teacherDocs.docs) doc.id: doc.data()['name'] ?? doc.id
+    };
+
     final lectures = <Map<String, dynamic>>[];
     for (final doc in snapshot.docs) {
       final data = doc.data();
-      // Extract teacherId
       String teacherId = '';
-      if (data['teacherId'] != null && data['teacherId'] is String) {
-        teacherId = data['teacherId'];
-      } else if (data['teacher'] is DocumentReference) {
+      if (data['teacher'] is DocumentReference) {
         teacherId = (data['teacher'] as DocumentReference).id;
       }
       if (!teacherIds.contains(teacherId)) continue;
 
+      final teacherName = teacherIdToName[teacherId] ?? teacherId;
+
       lectures.add({
         'teacherId': teacherId,
-        'teacherName': data['teacherName'] ?? teacherId,
+        'teacherName': teacherName,
         'lectures': data['lectures'] ?? {},
       });
     }

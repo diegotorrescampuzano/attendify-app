@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -53,15 +52,14 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
     '14:00-15:00',
   ];
 
-  // Assign a fixed color to each day for header columns
   final Map<String, Color> dayHeaderColors = {
-    'Monday': Color(0xFFE3F2FD),     // Light Blue
-    'Tuesday': Color(0xFFFFF9C4),    // Light Yellow
-    'Wednesday': Color(0xFFE1BEE7),  // Light Purple
-    'Thursday': Color(0xFFC8E6C9),   // Light Green
-    'Friday': Color(0xFFFFCCBC),     // Light Orange
-    'Saturday': Color(0xFFD7CCC8),   // Light Brown
-    'Sunday': Color(0xFFFFFDE7),     // Light Cream
+    'Monday': Color(0xFFE3F2FD),
+    'Tuesday': Color(0xFFFFF9C4),
+    'Wednesday': Color(0xFFE1BEE7),
+    'Thursday': Color(0xFFC8E6C9),
+    'Friday': Color(0xFFFFCCBC),
+    'Saturday': Color(0xFFD7CCC8),
+    'Sunday': Color(0xFFFFFDE7),
   };
 
   @override
@@ -145,7 +143,6 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
     setState(() {});
   }
 
-  /// Assigns a deterministic color to a string (subject)
   Color getColorForString(String input) {
     final colors = [
       Colors.teal[200]!,
@@ -162,7 +159,6 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
     return colors[input.hashCode.abs() % colors.length];
   }
 
-  /// Multi-select dropdown for teachers
   Widget _buildTeacherMultiSelect() {
     return DropdownButtonFormField<String>(
       value: null,
@@ -218,7 +214,6 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
       return const Center(child: Text('No hay horarios para mostrar.'));
     }
 
-    // 1. First row: "Docente", then 56 day columns (8 per day), each day block colored
     final headerRow = <Widget>[
       Container(
         alignment: Alignment.center,
@@ -230,7 +225,7 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
         for (int slot = 0; slot < 8; slot++)
           Container(
             alignment: Alignment.center,
-            color: dayHeaderColors[day], // color by day
+            color: dayHeaderColors[day],
             padding: const EdgeInsets.all(8),
             child: Text(
               daysEs[day]!,
@@ -239,13 +234,12 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
           ),
     ];
 
-    // 2. Second row: empty, then S1..S8 for each day
     final slotRow = <Widget>[
       Container(),
       for (int i = 0; i < days.length * 8; i++)
         Container(
           alignment: Alignment.center,
-          color: dayHeaderColors[days[i ~/ 8]], // match day color
+          color: dayHeaderColors[days[i ~/ 8]],
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Text(
             'S${(i % 8) + 1}',
@@ -254,7 +248,6 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
         ),
     ];
 
-    // 3. Third row: empty, then time range for each slot
     final timeRow = <Widget>[
       Container(),
       for (int i = 0; i < days.length * 8; i++)
@@ -269,7 +262,6 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
         ),
     ];
 
-    // 4. Teacher rows
     final teacherRows = _teacherLectures.map((lecture) {
       final cells = <Widget>[];
       // First column: teacher name
@@ -282,7 +274,6 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
         ),
       ));
 
-      // For each day and slot, show homeroom + subject or "Libre"
       for (final day in days) {
         final dayLectures = (lecture['lectures'][day.toLowerCase()] ?? []) as List<dynamic>;
         for (int slot = 1; slot <= 8; slot++) {
@@ -338,7 +329,6 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
           }
         }
       }
-      // Ensure exactly 57 cells
       while (cells.length < 57) {
         cells.add(Container());
       }
