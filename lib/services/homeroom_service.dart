@@ -1,46 +1,53 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeroomService {
-  // Existing method
-  static Future<List<Map<String, dynamic>>> getHomeroomsFromReferences(List<dynamic> references) async {
-    List<Map<String, dynamic>> homerooms = [];
+  /// Fetch homerooms enriched with lecture details (subject name, slot, time)
+  /// based on the lecturesForToday map from CampusService.
+  static Future<List<Map<String, dynamic>>> getHomeroomsWithLectureDetails(
+      Map<String, dynamic> lecturesForToday) async {
+    try {
+      final homeroomMap = <String, Map<String, dynamic>>{};
 
-    for (var ref in references) {
-      if (ref is DocumentReference) {
-        final snapshot = await ref.get();
-        if (snapshot.exists) {
-          final data = snapshot.data() as Map<String, dynamic>;
-          homerooms.add({
-            'id': snapshot.id,
-            'name': data['name'],
-            'description': data['description'],
-            'students': data['students'], // Lista de estudiantes
-            'subjects': data['subjects'], // Lista de asignaturas
-          });
+      for (final dayLectures in lecturesForToday.values) {
+        if (dayLectures is List) {
+          for (final lecture in dayLectures) {
+            final homeroomRef = lecture['homeroom'];
+            if (homeroomRef is DocumentReference) {
+              final homeroomId = homeroomRef.id;
+              if (!homeroomMap.containsKey(homeroomId)) {
+                final homeroomSnap = await homeroomRef.get();
+                if (!homeroomSnap.exists) continue;
+                final homeroomData = homeroomSnap.data() as Map<String, dynamic>;
+
+                // Fetch subject name
+                String subjectName = '';
+                final subjectRef = lecture['subject'];
+                if (subjectRef is DocumentReference) {
+                  final subjectSnap = await subjectRef.get();
+                  if (subjectSnap.exists) {
+                    final subjectData = subjectSnap.data() as Map<String, dynamic>;
+                    subjectName = subjectData['name'] ?? '';
+                  }
+                }
+
+                homeroomMap[homeroomId] = {
+                  'id': homeroomId,
+                  'name': homeroomData['name'] ?? 'Sin nombre',
+                  'description': homeroomData['description'] ?? '',
+                  'slot': lecture['slot'] ?? '',
+                  'subjectName': subjectName,
+                  'time': lecture['time'] ?? '',
+                  'ref': homeroomRef,
+                };
+              }
+            }
+          }
         }
       }
-    }
 
-    return homerooms;
-  }
-
-  // New method to fetch students by homeroom reference
-  static Future<List<Map<String, dynamic>>> getStudentsFromHomeroom(DocumentReference homeroomRef) async {
-    try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('students')
-          .where('homeroom', isEqualTo: homeroomRef)
-          .get();
-
-      return querySnapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          ...data,
-        };
-      }).toList();
+      return homeroomMap.values.toList();
     } catch (e) {
-      print('Error fetching students by homeroom: $e');
+      print('HomeroomService: Error fetching homerooms with lecture details: $e');
       return [];
     }
   }

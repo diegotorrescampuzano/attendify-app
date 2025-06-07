@@ -64,7 +64,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   void initState() {
     super.initState();
     // Load students from homeroom reference
-    _studentsFuture = HomeroomService.getStudentsFromHomeroom(widget.homeroom['ref']);
+    //////////////////////////////////////////////////////_studentsFuture = HomeroomService.getStudentsFromHomeroom(widget.homeroom['ref']);
     // Get teacher data from authentication service
     final userData = AuthService.currentUserData;
     _teacherId = userData?['refId'];
