@@ -38,6 +38,9 @@ import 'screens/reports/pattern_summary_screen.dart';
 // Import the new outstanding register report screen
 import 'screens/reports/outstanding_register_screen.dart';
 
+// Import the new schedule summary report screen
+import 'screens/reports/schedule_summary_screen.dart';
+
 // The entry point of the application — must be `main()` in Dart
 void main() async {
   // Ensures that Flutter is fully initialized before we use platform channels or Firebase
@@ -96,6 +99,8 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const PatternSummaryScreen());
           case '/outstandingRegister':
             return MaterialPageRoute(builder: (_) => const OutstandingRegisterScreen());
+          case '/scheduleSummary':
+            return MaterialPageRoute(builder: (_) => const ScheduleSummaryScreen());
           case '/credits':
             return MaterialPageRoute(builder: (_) => CreditsScreen());
           case '/educationalLevel':
