@@ -1,14 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 /// Attendance labels with descriptions and colors
 const Map<String, Map<String, dynamic>> attendanceLabels = {
-  'A': {'description': 'Asiste', 'color': Color(0xFF4CAF50)},       // Green
-  'T': {'description': 'Tarde', 'color': Color(0xFFFF9800)},        // Orange
-  'E': {'description': 'Evasión', 'color': Color(0xFFF44336)},      // Red
-  'I': {'description': 'Inasistencia', 'color': Colors.black54},    // Black54
-  'IJ': {'description': 'Inasistencia Justificada', 'color': Color(0xFF607D8B)}, // BlueGrey
-  'P': {'description': 'Retiro con acudiente', 'color': Color(0xFF9C27B0)},       // Purple
+  'A': {'description': 'Asiste', 'color': Color(0xFF4CAF50)},
+  'T': {'description': 'Tarde', 'color': Color(0xFFFF9800)},
+  'E': {'description': 'Evasión', 'color': Color(0xFFF44336)},
+  'I': {'description': 'Inasistencia', 'color': Colors.black54},
+  'IJ': {'description': 'Inasistencia Justificada', 'color': Color(0xFF607D8B)},
+  'P': {'description': 'Retiro con acudiente', 'color': Color(0xFF9C27B0)},
 };
 
 class AttendanceService {
@@ -44,7 +45,8 @@ class AttendanceService {
     });
   }
 
-  /// Saves attendance records including notes to Firestore
+  /// Saves attendance records including notes to Firestore.
+  /// Adds 'offTheClock' attribute if registration is out of the scheduled slot.
   Future<void> saveFullAttendance({
     required String docId,
     required Map<String, dynamic> generalInfo,
@@ -57,6 +59,32 @@ class AttendanceService {
   }) async {
     final timestamp = Timestamp.now();
 
+    // Determine if registration is off the scheduled time slot
+    bool offTheClock = false;
+    try {
+      // Parse slot, e.g., "07:00 - 08:00"
+      final slotParts = timeSlot.split('-');
+      if (slotParts.length == 2) {
+        final start = slotParts[0].trim();
+        final end = slotParts[1].trim();
+        final format = DateFormat('HH:mm');
+        final now = DateTime.now();
+
+        final startTime = format.parse(start);
+        final endTime = format.parse(end);
+
+        final nowMinutes = now.hour * 60 + now.minute;
+        final slotStartMinutes = startTime.hour * 60 + startTime.minute;
+        final slotEndMinutes = endTime.hour * 60 + endTime.minute;
+
+        if (nowMinutes < slotStartMinutes || nowMinutes > slotEndMinutes) {
+          offTheClock = true;
+        }
+      }
+    } catch (e) {
+      print('AttendanceService: Error parsing slot time for offTheClock: $e');
+    }
+
     final attendanceRecords = <String, Map<String, dynamic>>{};
     attendanceMap.forEach((studentId, label) {
       final labelInfo = attendanceLabels[label] ?? attendanceLabels['A']!;
@@ -66,6 +94,7 @@ class AttendanceService {
         'labelColor': labelInfo['color'].value.toRadixString(16).padLeft(8, '0'),
         'notes': notesMap[studentId] ?? '',
         'timestamp': timestamp,
+        'offTheClock': offTheClock, // Mark if out of scheduled slot
       };
     });
 
@@ -82,6 +111,7 @@ class AttendanceService {
       'updatedAt': timestamp,
     };
 
+    print('AttendanceService: Saving attendance for docId $docId, offTheClock: $offTheClock');
     await _db.collection('attendances').doc(docId).set(dataToSave);
   }
 }

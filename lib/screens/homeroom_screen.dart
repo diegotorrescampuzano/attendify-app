@@ -27,14 +27,33 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
     );
   }
 
-  /// Navigates to the subject screen with the selected homeroom and campus
+  /// Navigates to the attendance screen with the selected homeroom and all required arguments
   void _onHomeroomSelected(Map<String, dynamic> homeroom) {
+    // Prepare arguments for attendance screen
     Navigator.pushNamed(
       context,
-      '/subject',
+      '/attendance',
       arguments: {
-        'campus': widget.campus,
+        'campus': {
+          'id': homeroom['campusId'],
+          'name': homeroom['campusName'],
+        },
+        'educationalLevel': {
+          'id': homeroom['educationalLevelId'],
+          'name': homeroom['educationalLevelName'],
+        },
+        'grade': {
+          'id': homeroom['gradeId'],
+          'name': homeroom['gradeName'],
+        },
         'homeroom': homeroom,
+        'subject': {
+          'id': homeroom['subjectId'],  // Now correctly included
+          'name': homeroom['subjectName'],
+        },
+        // Pass slot, time, and current date for attendance
+        'selectedTime': homeroom['time'],
+        'selectedDate': DateTime.now(),
       },
     );
   }
@@ -48,13 +67,10 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
         backgroundColor: const Color(0xFF53A09D),
       ),
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), // Reduced top padding
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Removed campus name header to avoid repetition with AppBar
-
-            // Informative card explaining the screen purpose
             Card(
               color: const Color(0xFFE6F4F1),
               elevation: 2,
@@ -76,8 +92,6 @@ class _HomeroomScreenState extends State<HomeroomScreen> {
                 ),
               ),
             ),
-
-            // Expanded list of homerooms with lecture details
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: _homeroomsFuture,
