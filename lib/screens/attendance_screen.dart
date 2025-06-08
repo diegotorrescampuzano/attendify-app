@@ -49,6 +49,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   final AttendanceService _attendanceService = AttendanceService();
 
+  // Utility to get the day of the week as a string
+  String getDayOfWeek(DateTime date) {
+    const days = [
+      'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+    ];
+    return days[date.weekday - 1];
+  }
+
   late Future<List<Map<String, dynamic>>> _studentsFuture;
   List<Map<String, dynamic>> _students = [];
 
@@ -145,6 +153,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         'subjectId': widget.subject['id'],
         'subjectName': widget.subject['name'],
         'slot': widget.slot,
+        'day': getDayOfWeek(widget.selectedDate),
       };
 
       // Save the initial attendance record with defaults and notes
@@ -220,6 +229,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       'subjectId': widget.subject['id'],
       'subjectName': widget.subject['name'],
       'slot': widget.slot,
+      'day': getDayOfWeek(widget.selectedDate),
     };
 
     // Ensure students list is loaded before saving
