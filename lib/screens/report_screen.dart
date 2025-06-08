@@ -35,18 +35,18 @@ class ReportScreen extends StatelessWidget {
       routeName: '/homeroomSummary',
     ),
     _ReportCardData(
-      title: 'Resumen de Asistencias por Docente',
-      description:
-      'Cantidad de asistencias registradas por el docente en un rango de fechas, agrupadas por tipo y asignatura.',
-      icon: FontAwesomeIcons.userTie,
-      routeName: '/teacherSummary',
-    ),
-    _ReportCardData(
       title: 'Detalle de Asistencia por Estudiante',
       description:
       'Asistencias de estudiantes filtradas por rango de fechas, agrupadas por asignatura.',
       icon: FontAwesomeIcons.userGraduate,
       routeName: '/studentSummary', // add this route here
+    ),
+    _ReportCardData(
+      title: 'Resumen de Asistencias por Docente',
+      description:
+      'Cantidad de asistencias registradas por el docente en un rango de fechas, agrupadas por tipo y asignatura.',
+      icon: FontAwesomeIcons.userTie,
+      routeName: '/teacherSummary',
     ),
     _ReportCardData(
       title: 'Patrones de Ausencia',

@@ -1,5 +1,3 @@
-// /lib/services/reports/student_summary_service.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 const Map<String, Map<String, dynamic>> attendanceLabels = {
@@ -12,91 +10,101 @@ const Map<String, Map<String, dynamic>> attendanceLabels = {
 };
 
 class StudentSummaryService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Fetch students from 'students' collection, optionally filtered by name, homeroom, or cellphoneContact
-  Future<List<Map<String, dynamic>>> fetchStudents({String query = ''}) async {
-    print('Fetching students with query: "$query"');
-    final snapshot = await _firestore.collection('students').get();
-
-    print('Total students fetched from Firestore: ${snapshot.docs.length}');
-
-    final lowerQuery = query.toLowerCase();
-
-    final filteredStudents = snapshot.docs
-        .map((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      print('Processing student doc with ID: ${doc.id}'); // Log doc ID
-      return {
-        'refId': doc.id, // Use doc.id as refId
-        'name': data['name'] ?? '',
-        'homeroom': data['homeroom'] ?? '',
-        'cellphoneContact': data['cellphoneContact'] ?? '',
-      };
-    })
-        .where((data) {
-      final name = data['name'].toString().toLowerCase();
-      final homeroom = data['homeroom'].toString().toLowerCase();
-      final cellphone = data['cellphoneContact'].toString().toLowerCase();
-      final matches = query.isEmpty || name.contains(query) || homeroom.contains(query) || cellphone.contains(query);
-      return matches;
+  // Fetch all campuses
+  Future<List<Map<String, dynamic>>> fetchCampuses() async {
+    final snapshot = await _db.collection('campuses').get();
+    return snapshot.docs
+        .map((doc) => {
+      'id': doc.id,
+      ...((doc.data() as Map<String, dynamic>?) ?? {})
     })
         .toList();
-
-    print('Filtered students count: ${filteredStudents.length}');
-    print('Student refIds after processing: ${filteredStudents.map((s) => s['refId']).toList()}'); // Log refIds
-
-    return filteredStudents;
   }
 
-  /// Fetch detailed attendance for a student in a date range
-  ///
-  Future<Map<String, Map<String, String>>> fetchStudentAttendanceDetail({
-    required String studentRefId,
+  // Fetch homerooms for a campus (campusId is the string, e.g., 'c01')
+  Future<List<Map<String, dynamic>>> fetchHomerooms({required String campusId}) async {
+    final campusRef = _db.collection('campuses').doc(campusId);
+    final snapshot = await _db
+        .collection('homerooms')
+        .where('campusId', isEqualTo: campusRef)
+        .get();
+    return snapshot.docs
+        .map((doc) => {
+      'id': doc.id,
+      ...((doc.data() as Map<String, dynamic>?) ?? {})
+    })
+        .toList();
+  }
+
+  // Fetch students for a homeroom (by resolving references in the students array)
+  Future<List<Map<String, dynamic>>> fetchStudents({
+    required String campusId,
+    required String? homeroomId,
+    String? criteriaType,
+    String? criteriaValue,
+  }) async {
+    if (homeroomId == null) return [];
+    final homeroomDoc =
+    await _db.collection('homerooms').doc(homeroomId).get();
+    final studentRefs = List<DocumentReference>.from(homeroomDoc['students'] ?? []);
+    final students = <Map<String, dynamic>>[];
+    for (final ref in studentRefs) {
+      final studentDoc = await ref.get();
+      final data = (studentDoc.data() as Map<String, dynamic>?) ?? {};
+      // Optionally filter by name or cellphone if criteria is provided
+      if (criteriaType == 'name' &&
+          criteriaValue != null &&
+          criteriaValue.isNotEmpty &&
+          !(data['name'] ?? '').toString().toLowerCase().contains(criteriaValue.toLowerCase())) {
+        continue;
+      }
+      if (criteriaType == 'cellPhone' &&
+          criteriaValue != null &&
+          criteriaValue.isNotEmpty &&
+          !(data['cellphoneContact'] ?? '').toString().contains(criteriaValue)) {
+        continue;
+      }
+      students.add({'id': studentDoc.id, ...data});
+    }
+    return students;
+  }
+
+  // Fetch attendance records for a student in a date range
+  Future<List<Map<String, dynamic>>> fetchStudentAttendanceRecords({
+    required String studentId,
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    print('Fetching attendance detail for studentRefId: $studentRefId');
-    print('Date range: ${startDate.toIso8601String()} to ${endDate.toIso8601String()}');
-
-    final startTimestamp = Timestamp.fromDate(DateTime(startDate.year, startDate.month, startDate.day));
-    final endTimestamp = Timestamp.fromDate(DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59));
-
-    final snapshot = await _firestore
+    final snapshot = await _db
         .collection('attendances')
-        .where('date', isGreaterThanOrEqualTo: startTimestamp)
-        .where('date', isLessThanOrEqualTo: endTimestamp)
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
         .get();
 
-    print('Total attendance records fetched: ${snapshot.docs.length}');
-
-    final Map<String, Map<String, String>> detail = {}; // subjectName -> date -> label
-
+    List<Map<String, dynamic>> result = [];
     for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      final subjectName = data['subjectName'] ?? 'Sin asignatura';
-      final dateTimestamp = data['date'] as Timestamp?;
-      final dateStr = dateTimestamp != null
-          ? '${dateTimestamp.toDate().year.toString().padLeft(4, '0')}-${dateTimestamp.toDate().month.toString().padLeft(2, '0')}-${dateTimestamp.toDate().day.toString().padLeft(2, '0')}'
-          : '';
-
-      final attendanceRecordsDynamic = data['attendanceRecords'];
-      if (attendanceRecordsDynamic == null || attendanceRecordsDynamic is! Map<String, dynamic>) {
-        continue;
-      }
-      final attendanceRecords = Map<String, dynamic>.from(attendanceRecordsDynamic);
-
-      if (attendanceRecords.containsKey(studentRefId)) {
-        final studentAttendance = attendanceRecords[studentRefId];
-        if (studentAttendance is Map<String, dynamic>) {
-          final label = (studentAttendance['label'] ?? '').toString();
-          detail.putIfAbsent(subjectName, () => {});
-          detail[subjectName]![dateStr] = label;
-          print('Attendance for subject "$subjectName" on $dateStr: $label');
-        }
+      final data = (doc.data() as Map<String, dynamic>? ?? {});
+      final attendanceRecords = data['attendanceRecords'] as Map<String, dynamic>? ?? {};
+      if (attendanceRecords.containsKey(studentId)) {
+        final rec = attendanceRecords[studentId] as Map<String, dynamic>;
+        result.add({
+          'date': data['date'],
+          'subjectName': data['subjectName'] ?? '',
+          'slot': data['slot'] ?? '',
+          'teacherName': data['teacherName'] ?? '',
+          'label': rec['label'],
+          'details': rec['notes'] ?? '', // Use 'notes' as the field for notes
+        });
       }
     }
-    print('Attendance detail map constructed with ${detail.length} subjects');
-    return detail;
+    // Sort by date descending
+    result.sort((a, b) {
+      final ad = a['date'] is Timestamp ? (a['date'] as Timestamp).toDate() : DateTime.now();
+      final bd = b['date'] is Timestamp ? (b['date'] as Timestamp).toDate() : DateTime.now();
+      return bd.compareTo(ad);
+    });
+    return result;
   }
 }
