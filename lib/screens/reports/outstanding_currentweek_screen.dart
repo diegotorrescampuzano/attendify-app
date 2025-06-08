@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../../services/reports/outstanding_currentweek_service.dart';
 
@@ -25,10 +26,14 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
   List<Map<String, dynamic>> _teacherLectures = [];
   Set<String> _registeredAttendance = {};
 
-  Map<String, String> subjectNames = {};
-  Map<String, String> homeroomNames = {};
+  Map<String, String> _subjectNames = {};
+  Map<String, String> _homeroomNames = {};
 
   bool _loading = false;
+
+  int _lastRed = 0;
+  int _lastGreen = 0;
+  int _lastLibre = 0;
 
   static const List<String> days = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -152,12 +157,11 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
   }
 
   Future<void> _loadNames() async {
-    subjectNames = await _service.fetchNames('subjects');
-    homeroomNames = await _service.fetchNames('homerooms');
+    _subjectNames = await _service.fetchNames('subjects');
+    _homeroomNames = await _service.fetchNames('homerooms');
     setState(() {});
   }
 
-  /// Returns the start (Monday) and end (Sunday) of the current week.
   Map<String, DateTime> _getCurrentWeekRange() {
     final now = DateTime.now();
     final start = now.subtract(Duration(days: now.weekday - 1));
@@ -168,7 +172,6 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
     };
   }
 
-  /// Multi-select dropdown for teachers.
   Widget _buildTeacherMultiSelect() {
     return DropdownButtonFormField<String>(
       value: null,
@@ -216,19 +219,56 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
     );
   }
 
-  /// Builds the main schedule table with attendance coloring.
-  Widget _buildScheduleTable() {
+  Widget _buildColorLegend() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                color: Colors.red.withOpacity(0.4),
+              ),
+              const SizedBox(width: 8),
+              const Text('Asistencias pendientes por registrar', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                color: Colors.green.withOpacity(0.4),
+              ),
+              const SizedBox(width: 8),
+              const Text('Asistencias registradas', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScheduleTable({void Function(int, int, int)? onStats}) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_teacherLectures.isEmpty) {
+      if (onStats != null) onStats(0, 0, 0);
       return const Center(child: Text('No hay horarios para mostrar.'));
     }
 
-    // Header rows
+    int redCount = 0;
+    int greenCount = 0;
+    int libreCount = 0;
+
     final headerRow = <Widget>[
       Container(
-        alignment: Alignment.center,
+        alignment: Alignment.centerLeft,
         color: primaryColor.withOpacity(0.1),
         padding: const EdgeInsets.all(8),
         child: const Text('Docente', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -274,10 +314,8 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
         ),
     ];
 
-    // Data rows
     final teacherRows = _teacherLectures.map((lecture) {
       final cells = <Widget>[];
-      // First column: teacher name
       cells.add(Container(
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -299,6 +337,7 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
               slotData['subject'] == null ||
               slotData['homeroom'] == '' ||
               slotData['subject'] == '') {
+            libreCount++;
             cells.add(Container(
               alignment: Alignment.center,
               color: Colors.grey[100],
@@ -311,15 +350,14 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
               ),
             ));
           } else {
-            // Defensive: always use string for slot, lowercase for day, and string IDs
             final homeroomId = slotData['homeroom'] is DocumentReference
                 ? (slotData['homeroom'] as DocumentReference).id
                 : slotData['homeroom'].toString().trim();
             final subjectId = slotData['subject'] is DocumentReference
                 ? (slotData['subject'] as DocumentReference).id
                 : slotData['subject'].toString().trim();
-            final subjectName = subjectNames[subjectId] ?? subjectId;
-            final homeroomName = homeroomNames[homeroomId] ?? homeroomId;
+            final subjectName = _subjectNames[subjectId] ?? subjectId;
+            final homeroomName = _homeroomNames[homeroomId] ?? homeroomId;
             final slotStr = slot.toString().trim();
             final dayStr = day.toLowerCase().trim();
             final attendanceKey =
@@ -327,6 +365,12 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
             final attendanceExists = _registeredAttendance.contains(attendanceKey);
 
             print('[Screen] Checking attendance for key: $attendanceKey - Exists: $attendanceExists');
+
+            if (attendanceExists) {
+              greenCount++;
+            } else {
+              redCount++;
+            }
 
             cells.add(Container(
               alignment: Alignment.center,
@@ -358,6 +402,8 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
       return TableRow(children: cells);
     }).toList();
 
+    if (onStats != null) onStats(redCount, greenCount, libreCount);
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Table(
@@ -369,6 +415,91 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
           TableRow(children: timeRow),
           ...teacherRows,
         ],
+      ),
+    );
+  }
+
+  Widget _buildChartIfSingleTeacher() {
+    if (_teacherLectures.length != 1) return const SizedBox.shrink();
+    final total = _lastRed + _lastGreen + _lastLibre;
+    if (total == 0) return const SizedBox.shrink();
+
+    final sections = <PieChartSectionData>[
+      if (_lastRed > 0)
+        PieChartSectionData(
+          value: _lastRed.toDouble(),
+          color: Colors.red.withOpacity(0.7),
+          title: 'Pendientes\n${((_lastRed / total) * 100).toStringAsFixed(1)}%',
+          titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+      if (_lastGreen > 0)
+        PieChartSectionData(
+          value: _lastGreen.toDouble(),
+          color: Colors.green.withOpacity(0.7),
+          title: 'Registradas\n${((_lastGreen / total) * 100).toStringAsFixed(1)}%',
+          titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+      if (_lastLibre > 0)
+        PieChartSectionData(
+          value: _lastLibre.toDouble(),
+          color: Colors.grey.withOpacity(0.5),
+          title: 'Libre\n${((_lastLibre / total) * 100).toStringAsFixed(1)}%',
+          titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Text(
+            "Resumen de asistencias del docente",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 220,
+            child: PieChart(
+              PieChartData(
+                sections: sections,
+                centerSpaceRadius: 40,
+                sectionsSpace: 2,
+                borderData: FlBorderData(show: false),
+                pieTouchData: PieTouchData(enabled: false),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Custom legend with totals
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildChartLegendDot(Colors.red.withOpacity(0.7)),
+              const SizedBox(width: 6),
+              Text('Pendientes: $_lastRed', style: const TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(width: 16),
+              _buildChartLegendDot(Colors.green.withOpacity(0.7)),
+              const SizedBox(width: 6),
+              Text('Registradas: $_lastGreen', style: const TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(width: 16),
+              _buildChartLegendDot(Colors.grey.withOpacity(0.5)),
+              const SizedBox(width: 6),
+              Text('Libre: $_lastLibre', style: const TextStyle(fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartLegendDot(Color color) {
+    return Container(
+      width: 14,
+      height: 14,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
       ),
     );
   }
@@ -386,7 +517,6 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Campus dropdown
             DropdownButtonFormField<String>(
               value: _selectedCampusId,
               decoration: InputDecoration(
@@ -412,12 +542,30 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
               },
             ),
             const SizedBox(height: 12),
-            // Teacher multi-select
             if (_teachers.isNotEmpty)
               _buildTeacherMultiSelect(),
             const SizedBox(height: 16),
-            // Schedule table
-            Expanded(child: _buildScheduleTable()),
+            _buildColorLegend(),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Builder(
+                      builder: (context) {
+                        return _buildScheduleTable(
+                          onStats: (r, g, l) {
+                            _lastRed = r;
+                            _lastGreen = g;
+                            _lastLibre = l;
+                          },
+                        );
+                      },
+                    ),
+                    _buildChartIfSingleTeacher(),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
