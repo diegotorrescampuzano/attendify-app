@@ -10,129 +10,57 @@ const Map<String, Map<String, dynamic>> attendanceLabels = {
 };
 
 class HomeroomSummaryService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Fetch homerooms filtered by partial name match
-  Future<List<Map<String, dynamic>>> fetchHomerooms({required String criteria}) async {
-    print('Fetching homerooms with criteria: "$criteria"');
-    final snapshot = await _firestore.collection('homerooms').get();
-
-    final lowerCriteria = criteria.toLowerCase();
-
-    final filtered = snapshot.docs.map((doc) {
-      final data = doc.data();
-      return {
-        'refId': doc.id,
-        'name': data['name'] ?? '',
-      };
-    }).where((homeroom) {
-      final name = homeroom['name'].toString().toLowerCase();
-      return name.contains(lowerCriteria);
-    }).toList();
-
-    print('Filtered homerooms count: ${filtered.length}');
-    return filtered;
+  Future<List<Map<String, dynamic>>> fetchCampuses() async {
+    final snapshot = await _db.collection('campuses').get();
+    return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
   }
 
-  /// Fetch students of a homeroom by homeroomRefId
-  Future<List<Map<String, dynamic>>> fetchStudentsOfHomeroom(String homeroomRefId) async {
-    print('Fetching students for homeroomRefId: $homeroomRefId');
-    final snapshot = await _firestore.collection('students')
-        .where('homeroom', isEqualTo: _firestore.doc('homerooms/$homeroomRefId'))
+  Future<List<Map<String, dynamic>>> fetchHomerooms({required String campusId}) async {
+    final snapshot = await _db
+        .collection('homerooms')
+        .where('campusId', isEqualTo: _db.doc('campuses/$campusId'))
         .get();
-
-    final students = snapshot.docs.map((doc) {
-      final data = doc.data();
-      print('Processing student doc with ID: ${doc.id}');
-      return {
-        'refId': doc.id,
-        'name': data['name'] ?? '',
-        'cellphoneContact': data['cellphoneContact'] ?? '',
-      };
-    }).toList();
-
-    print('Students fetched: ${students.length}');
-    return students;
+    return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
   }
 
-  /// Fetch attendance totals per student in homeroom within date range
-  ///
-  /// Aggregates attendance across all subjects and dates.
-  /// Returns map: studentRefId -> {attendanceType: count, ...}
-  Future<Map<String, Map<String, int>>> fetchAttendanceTotalsPerStudent({
-    required String homeroomRefId,
-    required DateTime startDate,
-    required DateTime endDate,
+  Future<List<String>> fetchAttendanceTypes() async {
+    // Only return valid attendance types
+    return attendanceLabels.keys.toList();
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAttendanceSummary({
+    required List<String> homeroomIds,
+    required List<String> attendanceTypes,
   }) async {
-    print('Fetching attendance totals for homeroomRefId: $homeroomRefId');
-    print('Date range: ${startDate.toIso8601String()} to ${endDate.toIso8601String()}');
-
-    final students = await fetchStudentsOfHomeroom(homeroomRefId);
-    if (students.isEmpty) {
-      print('No students found for homeroom');
-      return {};
-    }
-
-    final studentIds = students.map((s) => s['refId'] as String).toSet();
-
-    final startTimestamp = Timestamp.fromDate(DateTime(startDate.year, startDate.month, startDate.day));
-    final endTimestamp = Timestamp.fromDate(DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59));
-
-    final snapshot = await _firestore
+    if (homeroomIds.isEmpty || attendanceTypes.isEmpty) return [];
+    // Get all attendance docs for selected homerooms
+    final snapshot = await _db
         .collection('attendances')
-        .where('date', isGreaterThanOrEqualTo: startTimestamp)
-        .where('date', isLessThanOrEqualTo: endTimestamp)
+        .where('homeroomId', whereIn: homeroomIds)
         .get();
 
-    print('Total attendance records fetched: ${snapshot.docs.length}');
-
-    final Map<String, Map<String, int>> attendanceTotals = {};
-
+    List<Map<String, dynamic>> result = [];
     for (final doc in snapshot.docs) {
       final data = doc.data();
-
-      final attendanceRecordsDynamic = data['attendanceRecords'];
-      if (attendanceRecordsDynamic == null || attendanceRecordsDynamic is! Map<String, dynamic>) {
-        continue;
-      }
-      final attendanceRecords = Map<String, dynamic>.from(attendanceRecordsDynamic);
-
-      for (final entry in attendanceRecords.entries) {
-        final studentRefId = entry.key;
-        if (!studentIds.contains(studentRefId)) continue; // Only consider students in homeroom
-
-        final studentAttendance = entry.value;
-        if (studentAttendance is! Map<String, dynamic>) continue;
-
-        final label = (studentAttendance['label'] ?? '').toString();
-        if (label.isEmpty) continue;
-
-        attendanceTotals.putIfAbsent(studentRefId, () => {});
-        attendanceTotals[studentRefId]![label] = (attendanceTotals[studentRefId]![label] ?? 0) + 1;
-      }
-    }
-
-    print('Attendance totals per student computed: ${attendanceTotals.length} students');
-    return attendanceTotals;
-  }
-
-  /// Calculate overall attendance percentage for the class
-  /// Assuming 'A' means present, others absence or late
-  double calculateClassAttendancePercentage(Map<String, Map<String, int>> attendanceTotals) {
-    int totalRecords = 0;
-    int totalPresent = 0;
-
-    for (final counts in attendanceTotals.values) {
-      for (final entry in counts.entries) {
-        totalRecords += entry.value;
-        if (entry.key == 'A') {
-          totalPresent += entry.value;
+      final attendanceRecords = data['attendanceRecords'] as Map<String, dynamic>? ?? {};
+      attendanceRecords.forEach((studentId, rec) {
+        if (attendanceTypes.contains(rec['label'])) {
+          result.add({
+            'studentId': studentId,
+            'studentName': rec['studentName'] ?? '',
+            'homeroomId': data['homeroomId'],
+            'homeroomName': data['homeroomName'] ?? '',
+            'label': rec['label'],
+            'date': data['date'],
+            'subjectName': data['subjectName'],
+            'slot': data['slot'],
+            'teacherName': data['teacherName'] ?? rec['teacherName'] ?? '', // prefer doc-level, fallback to record-level
+          });
         }
-      }
+      });
     }
-    if (totalRecords == 0) return 0.0;
-    final percent = (totalPresent / totalRecords) * 100;
-    print('Class attendance percentage calculated: $percent%');
-    return percent;
+    return result;
   }
 }
