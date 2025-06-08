@@ -37,6 +37,9 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
   List<Map<String, dynamic>> _attendanceSummary = [];
   bool _loading = false;
 
+  DateTime _startDate = DateTime.now().subtract(const Duration(days: 7));
+  DateTime _endDate = DateTime.now();
+
   @override
   void initState() {
     super.initState();
@@ -68,8 +71,43 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
     _attendanceSummary = await _service.fetchAttendanceSummary(
       homeroomIds: _selectedHomeroomIds,
       attendanceTypes: _selectedAttendanceTypes,
+      startDate: _startDate,
+      endDate: _endDate,
     );
     setState(() => _loading = false);
+  }
+
+  Future<void> _pickStartDate() async {
+    DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime(2000),
+      lastDate: _endDate,
+      locale: const Locale('es', 'ES'),
+    );
+    if (picked != null && picked != _startDate) {
+      setState(() {
+        _startDate = picked;
+        if (_endDate.isBefore(_startDate)) {
+          _endDate = _startDate;
+        }
+      });
+    }
+  }
+
+  Future<void> _pickEndDate() async {
+    DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate,
+      firstDate: _startDate,
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      locale: const Locale('es', 'ES'),
+    );
+    if (picked != null && picked != _endDate) {
+      setState(() {
+        _endDate = picked;
+      });
+    }
   }
 
   Future<void> _showHomeroomMultiSelect() async {
@@ -431,6 +469,39 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Date range pickers
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Fecha inicio:', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+                      TextButton(
+                        onPressed: _pickStartDate,
+                        child: Text(DateFormat('dd/MM/yyyy').format(_startDate)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Fecha fin:', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+                      TextButton(
+                        onPressed: _pickEndDate,
+                        child: Text(DateFormat('dd/MM/yyyy').format(_endDate)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
             DropdownButtonFormField<String>(
               value: _selectedCampusId,
               decoration: InputDecoration(

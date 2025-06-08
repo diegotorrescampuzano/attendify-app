@@ -26,19 +26,22 @@ class HomeroomSummaryService {
   }
 
   Future<List<String>> fetchAttendanceTypes() async {
-    // Only return valid attendance types
     return attendanceLabels.keys.toList();
   }
 
   Future<List<Map<String, dynamic>>> fetchAttendanceSummary({
     required List<String> homeroomIds,
     required List<String> attendanceTypes,
+    required DateTime startDate,
+    required DateTime endDate,
   }) async {
     if (homeroomIds.isEmpty || attendanceTypes.isEmpty) return [];
-    // Get all attendance docs for selected homerooms
+    // Get all attendance docs for selected homerooms and date range
     final snapshot = await _db
         .collection('attendances')
         .where('homeroomId', whereIn: homeroomIds)
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
         .get();
 
     List<Map<String, dynamic>> result = [];
@@ -56,7 +59,7 @@ class HomeroomSummaryService {
             'date': data['date'],
             'subjectName': data['subjectName'],
             'slot': data['slot'],
-            'teacherName': data['teacherName'] ?? rec['teacherName'] ?? '', // prefer doc-level, fallback to record-level
+            'teacherName': data['teacherName'] ?? rec['teacherName'] ?? '',
           });
         }
       });
