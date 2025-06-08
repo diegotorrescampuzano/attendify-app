@@ -14,6 +14,7 @@ const Map<String, Map<String, dynamic>> attendanceLabels = {
 class AttendanceService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  /// Generates the document ID for an attendance record.
   String generateDocId({
     required String homeroomId,
     required String subjectId,
@@ -27,6 +28,7 @@ class AttendanceService {
     return '${homeroomId}_${subjectId}_${dateStr}_${timeClean}';
   }
 
+  /// Loads all attendance records for a given document.
   Future<Map<String, Map<String, String>>> loadFullAttendance(String docId) async {
     final doc = await _db.collection('attendances').doc(docId).get();
     if (!doc.exists) return {};
@@ -41,7 +43,7 @@ class AttendanceService {
     });
   }
 
-  /// Now requires a students list to save student names
+  /// Saves attendance for all students, including the day field.
   Future<void> saveFullAttendance({
     required String docId,
     required Map<String, dynamic> generalInfo,
@@ -125,10 +127,22 @@ class AttendanceService {
 
     final dateTimestamp = Timestamp.fromDate(DateTime(date.year, date.month, date.day));
 
+    // Compute the day of the week (e.g. "monday")
+    String getDayOfWeek(DateTime date) {
+      const days = [
+        'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+      ];
+      return days[date.weekday - 1];
+    }
+
+    // Add the day field to the generalInfo
+    final generalInfoWithDay = Map<String, dynamic>.from(generalInfo)
+      ..['day'] = getDayOfWeek(date);
+
     final dataToSave = {
       'date': dateTimestamp,
       'time': timeSlot,
-      ...generalInfo,
+      ...generalInfoWithDay,
       'teacherId': teacherId,
       'teacherName': teacherName,
       'offTheClock': offTheClock,
@@ -137,7 +151,7 @@ class AttendanceService {
       'updatedAt': now,
     };
 
-    print('AttendanceService: Saving attendance for docId $docId, offTheClock: $offTheClock, isNew: $isNewDocument');
+    print('AttendanceService: Saving attendance for docId $docId, day: ${generalInfoWithDay['day']}, offTheClock: $offTheClock, isNew: $isNewDocument');
     await docRef.set(dataToSave);
   }
 }

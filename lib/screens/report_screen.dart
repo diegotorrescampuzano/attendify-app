@@ -23,6 +23,12 @@ class ReportScreen extends StatelessWidget {
       routeName: '/scheduleSummary',
     ),
     _ReportCardData(
+      title: 'Asistencias Pendientes (Semana Actual)',
+      description: 'Visualiza rápidamente qué docentes tienen clases con asistencia pendiente de registrar esta semana. Los bloques pendientes se muestran en rojo y los registrados en verde.',
+      icon: FontAwesomeIcons.exclamationCircle,
+      routeName: '/outstandingCurrentWeek',
+    ),
+    _ReportCardData(
       title: 'Resumen de Asistencias por Docente',
       description:
       'Cantidad de asistencias registradas por el docente en un rango de fechas, agrupadas por tipo y asignatura.',
