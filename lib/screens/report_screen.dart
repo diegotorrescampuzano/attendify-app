@@ -29,6 +29,12 @@ class ReportScreen extends StatelessWidget {
       routeName: '/outstandingCurrentWeek',
     ),
     _ReportCardData(
+      title: 'Asistencia por Salón',
+      description: 'Estadísticas de asistencia para un salón o grupo específico.',
+      icon: FontAwesomeIcons.chalkboardTeacher,
+      routeName: '/homeroomSummary',
+    ),
+    _ReportCardData(
       title: 'Resumen de Asistencias por Docente',
       description:
       'Cantidad de asistencias registradas por el docente en un rango de fechas, agrupadas por tipo y asignatura.',
@@ -41,12 +47,6 @@ class ReportScreen extends StatelessWidget {
       'Asistencias de estudiantes filtradas por rango de fechas, agrupadas por asignatura.',
       icon: FontAwesomeIcons.userGraduate,
       routeName: '/studentSummary', // add this route here
-    ),
-    _ReportCardData(
-      title: 'Asistencia por Salón',
-      description: 'Estadísticas de asistencia para un salón o grupo específico.',
-      icon: FontAwesomeIcons.chalkboardTeacher,
-      routeName: '/homeroomSummary',
     ),
     _ReportCardData(
       title: 'Patrones de Ausencia',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../services/reports/homeroom_summary_service.dart';
 
 const Map<String, Map<String, dynamic>> attendanceLabels = {
@@ -456,6 +457,108 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
     }
   }
 
+  void _showChartDialog() {
+    if (_attendanceSummary.isEmpty) return;
+
+    // Prepare data: {homeroomName: {type: total, ...}, ...}
+    final Map<String, Map<String, int>> chartData = {};
+    for (final record in _attendanceSummary) {
+      final homeroom = record['homeroomName'] ?? record['homeroomId'];
+      final type = record['label'];
+      chartData.putIfAbsent(homeroom, () => {});
+      chartData[homeroom]![type] = (chartData[homeroom]![type] ?? 0) + 1;
+    }
+    final homerooms = chartData.keys.toList();
+    final types = _selectedAttendanceTypes;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Gráfico por Homeroom'),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.95,
+            height: 400,
+            child: BarChart(
+              BarChartData(
+                barGroups: List.generate(homerooms.length, (i) {
+                  final homeroom = homerooms[i];
+                  return BarChartGroupData(
+                    x: i,
+                    barRods: List.generate(types.length, (j) {
+                      final type = types[j];
+                      return BarChartRodData(
+                        toY: (chartData[homeroom]?[type] ?? 0).toDouble(),
+                        width: 16,
+                        borderRadius: BorderRadius.circular(4),
+                        color: Color(attendanceLabels[type]?['color'] ?? 0xFF757575),
+                      );
+                    }),
+                  );
+                }),
+                groupsSpace: 24,
+                barTouchData: BarTouchData(enabled: true),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        final index = value.toInt();
+                        if (index < 0 || index >= homerooms.length) return Container();
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            homerooms[index],
+                            style: const TextStyle(fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      },
+                      reservedSize: 80,
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) => Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    ),
+                  ),
+                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                alignment: BarChartAlignment.center,
+                gridData: FlGridData(show: true),
+                borderData: FlBorderData(show: false),
+                maxY: _getMaxY(chartData, types) * 1.2,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  double _getMaxY(Map<String, Map<String, int>> chartData, List<String> types) {
+    double maxY = 0;
+    for (final data in chartData.values) {
+      for (final type in types) {
+        if ((data[type] ?? 0) > maxY) {
+          maxY = (data[type] ?? 0).toDouble();
+        }
+      }
+    }
+    return maxY < 5 ? 5 : maxY;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -569,6 +672,19 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
             ),
             const SizedBox(height: 24),
             Expanded(child: _buildTable()),
+            if (_attendanceSummary.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.bar_chart),
+                  label: const Text('Generar gráfico'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: _showChartDialog,
+                ),
+              ),
           ],
         ),
       ),
