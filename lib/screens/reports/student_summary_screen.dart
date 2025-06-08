@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../services/reports/student_summary_service.dart';
 
 const Map<String, Map<String, dynamic>> attendanceLabels = {
@@ -124,6 +125,61 @@ class _StudentSummaryScreenState extends State<StudentSummaryScreen> {
         _endDate = picked;
       });
     }
+  }
+
+  void _showAttendancePieChartDialog() {
+    final Map<String, int> typeCounts = {};
+    for (final rec in _attendanceSummary) {
+      final label = rec['label'] ?? '';
+      if (label.isEmpty) continue;
+      typeCounts[label] = (typeCounts[label] ?? 0) + 1;
+    }
+    final total = typeCounts.values.fold(0, (a, b) => a + b);
+
+    if (total == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No hay datos para graficar")),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Porcentaje por tipo de asistencia'),
+          content: SizedBox(
+            width: 320,
+            height: 320,
+            child: PieChart(
+              PieChartData(
+                sections: typeCounts.entries.map((entry) {
+                  final label = entry.key;
+                  final count = entry.value;
+                  final color = Color(attendanceLabels[label]?['color'] ?? 0xFF757575);
+                  final percent = (count / total * 100).toStringAsFixed(1);
+                  return PieChartSectionData(
+                    color: color,
+                    value: count.toDouble(),
+                    title: '${attendanceLabels[label]?['description'] ?? label}\n$percent% ($count)',
+                    titleStyle: const TextStyle(fontSize: 12, color: Colors.white),
+                    radius: 70,
+                  );
+                }).toList(),
+                sectionsSpace: 2,
+                centerSpaceRadius: 32,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildTable() {
@@ -361,6 +417,21 @@ class _StudentSummaryScreenState extends State<StudentSummaryScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: (_attendanceSummary.isNotEmpty)
+          ? Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: ElevatedButton.icon(
+          icon: const Icon(Icons.pie_chart),
+          label: const Text('Generar gráfico'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.deepPurple,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(48),
+          ),
+          onPressed: _showAttendancePieChartDialog,
+        ),
+      )
+          : null,
     );
   }
 }
