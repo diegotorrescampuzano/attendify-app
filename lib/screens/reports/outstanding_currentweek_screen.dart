@@ -30,6 +30,7 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
   Map<String, String> _homeroomNames = {};
 
   bool _loading = false;
+  bool _showChart = false;
 
   int _lastRed = 0;
   int _lastGreen = 0;
@@ -81,11 +82,13 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
       final campuses = await _service.fetchCampuses();
       setState(() {
         _campuses = campuses;
-        _selectedCampusId = campuses.isNotEmpty ? campuses.first['id'] : null;
+        _selectedCampusId = null;
+        _teachers = [];
+        _selectedTeacherIds = [];
+        _teacherLectures = [];
+        _registeredAttendance = {};
+        _showChart = false;
       });
-      if (_selectedCampusId != null) {
-        await _loadTeachers();
-      }
     } catch (e) {
       print('[Screen] Error loading campuses: $e');
       if (mounted) {
@@ -99,15 +102,26 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
   }
 
   Future<void> _loadTeachers() async {
-    if (_selectedCampusId == null) return;
+    if (_selectedCampusId == null) {
+      setState(() {
+        _teachers = [];
+        _selectedTeacherIds = [];
+        _teacherLectures = [];
+        _registeredAttendance = {};
+        _showChart = false;
+      });
+      return;
+    }
     setState(() => _loading = true);
     try {
       final teachers = await _service.fetchTeachersForCampus(_selectedCampusId!);
       setState(() {
         _teachers = teachers;
-        _selectedTeacherIds = teachers.isNotEmpty ? [teachers.first['id']] : [];
+        _selectedTeacherIds = [];
+        _teacherLectures = [];
+        _registeredAttendance = {};
+        _showChart = false;
       });
-      await _loadTeacherLecturesAndAttendance();
     } catch (e) {
       print('[Screen] Error loading teachers: $e');
       if (mounted) {
@@ -121,7 +135,14 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
   }
 
   Future<void> _loadTeacherLecturesAndAttendance() async {
-    if (_selectedCampusId == null || _selectedTeacherIds.isEmpty) return;
+    if (_selectedCampusId == null || _selectedTeacherIds.isEmpty) {
+      setState(() {
+        _teacherLectures = [];
+        _registeredAttendance = {};
+        _showChart = false;
+      });
+      return;
+    }
     setState(() => _loading = true);
     try {
       final lectures = await _service.fetchTeacherLectures(
@@ -138,12 +159,8 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
       setState(() {
         _teacherLectures = lectures;
         _registeredAttendance = attendance;
+        _showChart = false;
       });
-      print('[Screen] Loaded lectures and attendance for week ${weekRange['start']} - ${weekRange['end']}');
-      print('[Screen] Registered attendance keys:');
-      for (final key in _registeredAttendance) {
-        print('[Screen]   $key');
-      }
     } catch (e) {
       print('[Screen] Error loading lectures/attendance: $e');
       if (mounted) {
@@ -172,50 +189,89 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
     };
   }
 
-  Widget _buildTeacherMultiSelect() {
-    return DropdownButtonFormField<String>(
-      value: null,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: 'Docentes',
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      items: _teachers.map((teacher) {
-        return DropdownMenuItem<String>(
-          value: teacher['id'],
-          child: Row(
-            children: [
-              Checkbox(
-                value: _selectedTeacherIds.contains(teacher['id']),
-                onChanged: (checked) {
-                  setState(() {
-                    if (checked == true) {
-                      _selectedTeacherIds.add(teacher['id']);
-                    } else {
-                      _selectedTeacherIds.remove(teacher['id']);
-                    }
-                  });
-                  _loadTeacherLecturesAndAttendance();
+  Future<void> _showTeacherMultiSelect() async {
+    if (_teachers.isEmpty) return;
+    final selected = Set<String>.from(_selectedTeacherIds);
+
+    final result = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: ListView.builder(
+            itemCount: _teachers.length,
+            itemBuilder: (context, index) {
+              final teacher = _teachers[index];
+              final isSelected = selected.contains(teacher['id']);
+              return ListTile(
+                onTap: () {
+                  if (isSelected) {
+                    selected.remove(teacher['id']);
+                  } else {
+                    selected.add(teacher['id']);
+                  }
+                  Navigator.of(context).pop(Set<String>.from(selected));
                 },
-              ),
-              Text(teacher['name']),
-            ],
+                leading: Checkbox(
+                  value: isSelected,
+                  onChanged: (checked) {
+                    if (checked == true) {
+                      selected.add(teacher['id']);
+                    } else {
+                      selected.remove(teacher['id']);
+                    }
+                    Navigator.of(context).pop(Set<String>.from(selected));
+                  },
+                ),
+                title: Text(teacher['name']),
+              );
+            },
           ),
         );
-      }).toList(),
-      onChanged: (_) {},
-      selectedItemBuilder: (context) {
-        return _teachers.map((teacher) {
-          return Text(
-            _selectedTeacherIds.contains(teacher['id'])
-                ? teacher['name']
-                : '',
-            style: const TextStyle(color: Colors.black),
-          );
-        }).toList();
       },
+    );
+    if (result != null) {
+      setState(() {
+        _selectedTeacherIds = result.toList();
+        _teacherLectures = [];
+        _registeredAttendance = {};
+        _showChart = false;
+      });
+      await _loadTeacherLecturesAndAttendance();
+    }
+  }
+
+  Widget _buildTeacherMultiSelectButton() {
+    return GestureDetector(
+      onTap: _showTeacherMultiSelect,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.people, color: Colors.grey),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _selectedTeacherIds.isEmpty
+                    ? 'Seleccionar Docentes'
+                    : _teachers
+                    .where((t) => _selectedTeacherIds.contains(t['id']))
+                    .map((t) => t['name'])
+                    .join(', '),
+                style: const TextStyle(fontSize: 16, color: Colors.black87),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down),
+          ],
+        ),
+      ),
     );
   }
 
@@ -255,6 +311,7 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
 
   Widget _buildScheduleTable({void Function(int, int, int)? onStats}) {
     if (_loading) {
+      if (onStats != null) onStats(0, 0, 0);
       return const Center(child: CircularProgressIndicator());
     }
     if (_teacherLectures.isEmpty) {
@@ -364,8 +421,6 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
                 '${lecture['teacherId']}|$dayStr|$slotStr|$homeroomId|$subjectId';
             final attendanceExists = _registeredAttendance.contains(attendanceKey);
 
-            print('[Screen] Checking attendance for key: $attendanceKey - Exists: $attendanceExists');
-
             if (attendanceExists) {
               greenCount++;
             } else {
@@ -420,7 +475,10 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
   }
 
   Widget _buildChartIfSingleTeacher() {
-    if (_teacherLectures.length != 1) return const SizedBox.shrink();
+    if (!_showChart ||
+        _selectedCampusId == null ||
+        _selectedTeacherIds.length != 1 ||
+        _teacherLectures.length != 1) return const SizedBox.shrink();
     final total = _lastRed + _lastGreen + _lastLibre;
     if (total == 0) return const SizedBox.shrink();
 
@@ -471,7 +529,6 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
             ),
           ),
           const SizedBox(height: 16),
-          // Custom legend with totals
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -506,6 +563,10 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
 
   @override
   Widget build(BuildContext context) {
+    bool canShowChartButton = _selectedCampusId != null &&
+        _selectedTeacherIds.length == 1 &&
+        _teacherLectures.length == 1;
+
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
@@ -537,13 +598,15 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
                   _selectedTeacherIds = [];
                   _teachers = [];
                   _teacherLectures = [];
+                  _registeredAttendance = {};
+                  _showChart = false;
                 });
                 await _loadTeachers();
               },
             ),
             const SizedBox(height: 12),
             if (_teachers.isNotEmpty)
-              _buildTeacherMultiSelect(),
+              _buildTeacherMultiSelectButton(),
             const SizedBox(height: 16),
             _buildColorLegend(),
             Expanded(
@@ -561,6 +624,19 @@ class _OutstandingCurrentWeekScreenState extends State<OutstandingCurrentWeekScr
                         );
                       },
                     ),
+                    if (canShowChartButton)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.pie_chart),
+                          label: const Text('Generar gráfico'),
+                          onPressed: () {
+                            setState(() {
+                              _showChart = true;
+                            });
+                          },
+                        ),
+                      ),
                     _buildChartIfSingleTeacher(),
                   ],
                 ),
