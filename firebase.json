@@ -1,1 +1,27 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"attendify-app-816f2","appId":"1:1000187674083:android:b3c64e0914d2e3ef0674d6","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"attendify-app-816f2","configurations":{"android":"1:1000187674083:android:b3c64e0914d2e3ef0674d6"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "attendify-app-kirpalamar",
+          "appId": "1:361067886943:android:37455d92cf3cbf0f6ddeea",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "attendify-app-kirpalamar",
+          "configurations": {
+            "android": "1:361067886943:android:37455d92cf3cbf0f6ddeea"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "nam5",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}
