@@ -1,36 +1,45 @@
 {
   "project_info": {
-    "project_number": "1000187674083",
-    "project_id": "attendify-app-816f2",
-    "storage_bucket": "attendify-app-816f2.firebasestorage.app"
+    "project_number": "361067886943",
+    "project_id": "attendify-app-kirpalamar",
+    "storage_bucket": "attendify-app-kirpalamar.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1000187674083:android:b3c64e0914d2e3ef0674d6",
+        "mobilesdk_app_id": "1:361067886943:android:cb7e38aab2f503796ddeea",
         "android_client_info": {
-          "package_name": "com.example.attendify"
+          "package_name": "com.edupilot360.attendify"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "1000187674083-4hjfb160p9fv19vsj8dgb8ojstan04c3.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCzF0Js8zYb5jAcePrVUpWFnlXr637KCck"
+          "current_key": "AIzaSyAkEvqaBvhd1dJVZe3e__f8XkTHMJTKbBI"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "1000187674083-4hjfb160p9fv19vsj8dgb8ojstan04c3.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:361067886943:android:37455d92cf3cbf0f6ddeea",
+        "android_client_info": {
+          "package_name": "com.example.attendify"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkEvqaBvhd1dJVZe3e__f8XkTHMJTKbBI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
         }
       }
     }

@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Permitir a los usuarios autenticados acceder a su propio documento en 'users'
+    // If you want to allow authenticated users to query all users with role "teacher", you need to relax the rule for queries on users collection.
+    // * This allows authenticated users to read any user document with role "teacher".
+    // * Write remains restricted to the user's own document.
+    // Note: This allows any authenticated user to read all teacher user docs, so consider if this fits your security model.
+    match /users/{userId} {
+      allow read: if request.auth != null && resource.data.role == 'teacher';
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Permitir lectura de su propio documento en 'teachers'
+    match /teachers/{teacherId} {
+      allow read: if request.auth != null;
+    }
+
+    // Permitir lectura de los campus asignados (referenciados) a los docentes
+    match /campuses/{campusId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Permitir lectura de los educationalLevels asignados (referenciados) a los docentes
+    match /educationalLevels/{educationalLevelId} {
+      allow read: if request.auth != null;
+    }
+    
+    // Permitir lectura de los grades asignados (referenciados) a los docentes
+    match /grades/{gradeId} {
+      allow read: if request.auth != null;
+    }
+    
+    // Permitir lectura de los homerooms asignados (referenciados) a los docentes
+    match /homerooms/{homeroomId} {
+      allow read: if request.auth != null;
+    }
+    
+    // Permitir lectura de los schools asignados (referenciados) a los docentes
+    match /schools/{schoolId} {
+      allow read, write: if request.auth != null;
+    }
+
+    
+    // Permitir lectura de los students asignados (referenciados) a los docentes
+    match /students/{studentId} {
+      allow read: if request.auth != null 
+              && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+    
+    // Permitir lectura de los subjects asignados (referenciados) a los docentes
+    match /subjects/{subjectId} {
+      allow read: if request.auth != null;
+    }
+    
+    // Permitir lectura de los attendances asignados (referenciados) a los docentes
+    match /attendances/{attendanceId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Permitir lectura de los attendanceLabels asignados (referenciados) a los docentes
+    match /attendanceLabels/{attendanceLabelId} {
+      allow read: if request.auth != null;
+    }
+    
+    // Permitir lectura de los teacherLectures asignados (referenciados) a los docentes
+    match /teacherLectures/{teacherLectureId} {
+      allow read: if request.auth != null;
+    }
+  }
+}
+
