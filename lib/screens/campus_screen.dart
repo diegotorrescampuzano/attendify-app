@@ -1,6 +1,6 @@
 // campus_screen.dart
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 import '../services/campus_service.dart';
 
 class CampusScreen extends StatefulWidget {
@@ -11,17 +11,36 @@ class CampusScreen extends StatefulWidget {
 }
 
 class _CampusScreenState extends State<CampusScreen> {
-  late Future<List<Map<String, dynamic>>> _campusesFuture;
   String? _refId;
+  late Future<List<Map<String, dynamic>>> _campusesFuture;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    final userData = AuthService.currentUserData;
-    _refId = userData?['refId'];
-    _campusesFuture = _refId != null
-        ? CampusService.getCampusesAndLecturesForTeacher(_refId!)
-        : Future.value([]);
+    _loadUserAndCampuses();
+  }
+
+  /// Loads user profile from Firestore to get refId,
+  /// then loads campuses for that refId.
+  Future<void> _loadUserAndCampuses() async {
+    print('[CampusScreen] Loading user profile to get refId...');
+    final userData = await FirestoreService.getUserProfile();
+    setState(() {
+      _refId = userData?['refId'];
+      _isLoading = false;
+    });
+    if (_refId != null) {
+      print('[CampusScreen] Found refId: $_refId. Loading campuses...');
+      setState(() {
+        _campusesFuture = CampusService.getCampusesAndLecturesForTeacher(_refId!);
+      });
+    } else {
+      print('[CampusScreen] No refId found for user.');
+      setState(() {
+        _campusesFuture = Future.value([]);
+      });
+    }
   }
 
   void _onCampusSelected(Map<String, dynamic> campus) {
@@ -40,17 +59,21 @@ class _CampusScreenState extends State<CampusScreen> {
         title: const Text('Selecciona tu campus'),
         backgroundColor: const Color(0xFF53A09D),
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : FutureBuilder<List<Map<String, dynamic>>>(
         future: _campusesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
+            print('[CampusScreen] Error loading campuses: ${snapshot.error}');
             return const Center(child: Text('Ocurrió un error cargando los campuses.'));
           }
           final campuses = snapshot.data ?? [];
           if (campuses.isEmpty) {
+            print('[CampusScreen] No campuses found for refId $_refId.');
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(16.0),
@@ -98,7 +121,7 @@ class _CampusScreenState extends State<CampusScreen> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _onCampusSelected(campus),
                 ),
-              )).toList(),
+              )),
             ],
           );
         },
