@@ -44,6 +44,9 @@ import 'screens/reports/schedule_summary_screen.dart';
 // Import the new outstanding current week report screen
 import 'screens/reports/outstanding_currentweek_screen.dart';
 
+// Import the splash screen
+import 'screens/splash_screen.dart';
+
 // The entry point of the application — must be `main()` in Dart
 void main() async {
   // Ensures that Flutter is fully initialized before we use platform channels or Firebase
@@ -79,9 +82,11 @@ class MyApp extends StatelessWidget {
         Locale('es', ''), // Spanish
         // Add other locales here if needed
       ],
-      initialRoute: '/', // Start with LoginScreen
+      initialRoute: '/splash',
       onGenerateRoute: (settings) {
         switch (settings.name) {
+          case '/splash':
+            return MaterialPageRoute(builder: (_) => const SplashScreen());
           case '/':
             return MaterialPageRoute(builder: (_) => const LoginScreen());
           case '/home':
