@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 /// Our custom authentication service class
 class AuthService {
-  // Create a singleton instance of FirebaseAuth
+  // Singleton instance of FirebaseAuth
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Store user data from Firestore for easy global access
@@ -19,29 +19,41 @@ class AuthService {
     try {
       // Try signing in with email and password
       await _auth.signInWithEmailAndPassword(email: email, password: password);
+      print('[AuthService] Login successful for: $email');
       return null; // Success — return no error
     } on FirebaseAuthException catch (e) {
       // Firebase-specific error occurred
+      print('[AuthService] Login failed for $email: ${e.message}');
       return e.message ?? 'Login failed'; // Return specific message or generic
-    } catch (_) {
+    } catch (e) {
       // Any other unexpected error
+      print('[AuthService] Unexpected error during login: $e');
       return 'Unexpected error'; // Fallback error
     }
   }
 
+  /// Logs out the current user from Firebase Authentication.
+  /// This will also clear the cached user data.
   static Future<void> logout() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut(); // Firebase handles session clearing
+      print('[AuthService] User signed out successfully.');
+    } catch (e) {
+      print('[AuthService] Error during sign out: $e');
+    }
     _currentUserData = null; // Clear cached data on logout
   }
 
-  /// Returns the current user ID (UID) if signed in
+  /// Returns the current user ID (UID) if signed in, or null if not signed in.
   static String? getCurrentUserId() {
-    return _auth.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
+    print('[AuthService] getCurrentUserId: $uid');
+    return uid;
   }
 
-  /// Used by FirestoreService to cache user profile globally
+  /// Used by FirestoreService to cache user profile globally.
   static set currentUserData(Map<String, dynamic>? data) {
-    print("Setting current user data: $data");
+    print('[AuthService] Setting current user data: $data');
     _currentUserData = data;
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
+import '../services/auth_service.dart'; // Import AuthService for logout
 
 /// Drawer widget with a profile and logout option.
 class AppDrawer extends StatelessWidget {
@@ -63,15 +64,23 @@ class AppDrawer extends StatelessWidget {
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/credits');
-                  },
+                },
               ),
 
               // Logout menu option
               ListTile(
                 leading: const Icon(Icons.logout, color: Color(0xFF53a09d)),
                 title: const Text('Cerrar sesión'),
-                onTap: () {
+                onTap: () async {
+                  // Close the drawer first
                   Navigator.pop(context);
+
+                  // Log out the user using AuthService
+                  print('[AppDrawer] Logging out user...');
+                  await AuthService.logout();
+                  print('[AppDrawer] User logged out. Navigating to login screen.');
+
+                  // Navigate to login screen and remove all previous routes
                   Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
                 },
               ),
