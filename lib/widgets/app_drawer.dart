@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart'; // Import AuthService for logout
 
-/// Drawer widget with a profile and logout option.
+/// Drawer widget with a profile, license, and logout option.
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
 
@@ -54,6 +54,7 @@ class AppDrawer extends StatelessWidget {
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/profile');
+                  print('[AppDrawer] Navigated to Mi Perfil');
                 },
               ),
 
@@ -64,6 +65,18 @@ class AppDrawer extends StatelessWidget {
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/credits');
+                  print('[AppDrawer] Navigated to Créditos');
+                },
+              ),
+
+              // License menu option
+              ListTile(
+                leading: const Icon(Icons.verified_user, color: Color(0xFF53a09d)),
+                title: const Text('Licencia'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/license');
+                  print('[AppDrawer] Navigated to Licencia');
                 },
               ),
 
