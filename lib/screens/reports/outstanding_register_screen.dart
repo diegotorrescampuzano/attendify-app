@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/reports/outstanding_register_service.dart';
 
-// Corporate colors (as in homeroom_summary_screen)
+// Corporate colors as in homeroom_summary_screen
 const Color backgroundColor = Color(0xFFF0F0E3);
 const Color primaryColor = Color(0xFF53A09D);
 
@@ -13,7 +13,8 @@ class OutstandingRegisterScreen extends StatefulWidget {
 }
 
 class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 7));
+  // Default both dates to today
+  DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
   bool _loading = false;
   List<Map<String, dynamic>> _outstanding = [];
@@ -56,6 +57,7 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
     final results = await _service.findOutstandingAttendance(
         _startDate, _endDate, campusId: _selectedCampusId
     );
+    // Sort is already handled in the service, but you can double-check here if needed
     setState(() {
       _outstanding = results;
       _loading = false;
@@ -209,6 +211,14 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
     );
   }
 
+  /// Helper to get Spanish weekday name from a date string (yyyy-MM-dd)
+  String _spanishDayName(String dateStr) {
+    final date = DateTime.tryParse(dateStr);
+    if (date == null) return '';
+    // Use Spanish locale for day name
+    return DateFormat.EEEE('es_ES').format(date);
+  }
+
   Widget _buildOutstandingList() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
@@ -221,10 +231,27 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
       separatorBuilder: (_, __) => Divider(),
       itemBuilder: (context, index) {
         final record = _outstanding[index];
+        final dayName = record['spanishDayName'] ?? _spanishDayName(record['date'] ?? '');
         return ListTile(
           tileColor: Colors.white,
-          title: Text(record['teacherName'] ?? 'Sin docente', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
-          subtitle: Text('Fecha: ${record['date']}  Campus: ${record['campusName'] ?? ''}'),
+          title: Text(
+            record['teacherName'] ?? 'Sin docente',
+            style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Fecha: ${record['date']}  (${dayName[0].toUpperCase()}${dayName.substring(1)})  Campus: ${record['campusName'] ?? ''}'),
+              if ((record['subjectName'] ?? '').isNotEmpty)
+                Text('Materia: ${record['subjectName']}'),
+              if ((record['homeroomName'] ?? '').isNotEmpty)
+                Text('Homeroom: ${record['homeroomName']}'),
+              if ((record['slot'] ?? '').isNotEmpty)
+                Text('Slot: ${record['slot']}'),
+              if ((record['time'] ?? '').isNotEmpty)
+                Text('Hora: ${record['time']}'),
+            ],
+          ),
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -255,6 +282,17 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
             const SizedBox(height: 16),
             _buildCampusAndButtonRow(),
             const SizedBox(height: 16),
+            if (_outstanding.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Se encontraron ${_outstanding.length} resultados',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: primaryColor),
+                  ),
+                ),
+              ),
             Expanded(child: _buildOutstandingList()),
           ],
         ),

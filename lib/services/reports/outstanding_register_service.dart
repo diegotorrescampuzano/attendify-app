@@ -58,6 +58,11 @@ class OutstandingRegisterService {
         return result;
       }
 
+      // Helper: Get Spanish weekday name from a DateTime
+      String _spanishDayName(DateTime date) {
+        return DateFormat.EEEE('es_ES').format(date);
+      }
+
       final outstanding = <Map<String, dynamic>>[];
 
       for (final doc in lecturesSnap.docs) {
@@ -111,24 +116,40 @@ class OutstandingRegisterService {
               final attendanceKey = '$lectureId-${weekday.toLowerCase()}-$slot-$dateStr';
               final attended = existingAttendance[lectureId]?.contains(attendanceKey) ?? false;
               if (!attended) {
+                // Get the Spanish day name for this date
+                final dayName = _spanishDayName(date);
                 outstanding.add({
                   'teacherLectureId': lectureId,
                   'teacherName': teacherName,
                   'campusName': campusName,
                   'date': dateStr,
                   'weekday': weekday,
+                  'spanishDayName': dayName,
                   'slot': slot,
                   'subjectName': subjectName,
                   'homeroomName': homeroomName,
                   'time': time,
                   'status': 'Pendiente',
                 });
-                print('OutstandingRegisterService: Outstanding - $teacherName $subjectName $homeroomName on $weekday slot $slot at $campusName ($dateStr)');
+                print('OutstandingRegisterService: Outstanding - $teacherName $subjectName $homeroomName on $dayName slot $slot at $campusName ($dateStr)');
               }
             }
           }
         }
       }
+
+      // Sort: teacherName ASC, date DESC, slot DESC
+      outstanding.sort((a, b) {
+        final teacherComp = (a['teacherName'] ?? '').compareTo(b['teacherName'] ?? '');
+        if (teacherComp != 0) return teacherComp;
+        final dateA = DateTime.tryParse(a['date'] ?? '') ?? DateTime(1900);
+        final dateB = DateTime.tryParse(b['date'] ?? '') ?? DateTime(1900);
+        if (dateA != dateB) return dateB.compareTo(dateA);
+        final slotA = int.tryParse(a['slot']?.toString() ?? '0') ?? 0;
+        final slotB = int.tryParse(b['slot']?.toString() ?? '0') ?? 0;
+        return slotB.compareTo(slotA);
+      });
+
       print('OutstandingRegisterService: Returning ${outstanding.length} outstanding records');
       return outstanding;
     } catch (e) {
