@@ -75,11 +75,11 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
       final campuses = await _service.fetchCampuses();
       setState(() {
         _campuses = campuses;
-        _selectedCampusId = campuses.isNotEmpty ? campuses.first['id'] : null;
+        _selectedCampusId = null; // No campus selected by default
+        _teachers = [];
+        _selectedTeacherIds = [];
+        _teacherLectures = [];
       });
-      if (_selectedCampusId != null) {
-        await _loadTeachers();
-      }
     } catch (e) {
       print('Error loading campuses: $e');
       if (mounted) {
@@ -99,9 +99,9 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
       final teachers = await _service.fetchTeachersForCampus(_selectedCampusId!);
       setState(() {
         _teachers = teachers;
-        _selectedTeacherIds = teachers.isNotEmpty ? [teachers.first['id']] : [];
+        _selectedTeacherIds = []; // No teacher selected by default
+        _teacherLectures = [];
       });
-      await _loadTeacherLectures();
     } catch (e) {
       print('Error loading teachers: $e');
       if (mounted) {
@@ -160,49 +160,34 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
   }
 
   Widget _buildTeacherMultiSelect() {
-    return DropdownButtonFormField<String>(
-      value: null,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: 'Docentes',
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      items: _teachers.map((teacher) {
-        return DropdownMenuItem<String>(
-          value: teacher['id'],
-          child: Row(
-            children: [
-              Checkbox(
-                value: _selectedTeacherIds.contains(teacher['id']),
-                onChanged: (checked) {
-                  setState(() {
-                    if (checked == true) {
-                      _selectedTeacherIds.add(teacher['id']);
-                    } else {
-                      _selectedTeacherIds.remove(teacher['id']);
-                    }
-                  });
-                  _loadTeacherLectures();
-                },
-              ),
-              Text(teacher['name']),
-            ],
-          ),
-        );
-      }).toList(),
-      onChanged: (_) {},
-      selectedItemBuilder: (context) {
-        return _teachers.map((teacher) {
-          return Text(
-            _selectedTeacherIds.contains(teacher['id'])
-                ? teacher['name']
-                : '',
-            style: const TextStyle(color: Colors.black),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Docentes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ..._teachers.map((teacher) {
+          final isSelected = _selectedTeacherIds.contains(teacher['id']);
+          return CheckboxListTile(
+            value: isSelected,
+            title: Text(teacher['name']),
+            onChanged: (checked) {
+              setState(() {
+                if (checked == true) {
+                  _selectedTeacherIds.add(teacher['id']);
+                } else {
+                  _selectedTeacherIds.remove(teacher['id']);
+                }
+              });
+              if (_selectedTeacherIds.isNotEmpty) {
+                _loadTeacherLectures();
+              } else {
+                setState(() {
+                  _teacherLectures = [];
+                });
+              }
+            },
           );
-        }).toList();
-      },
+        }).toList(),
+      ],
     );
   }
 
