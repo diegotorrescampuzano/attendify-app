@@ -111,7 +111,7 @@ class MyApp extends StatelessWidget {
           case '/patternSummary':
             return MaterialPageRoute(builder: (_) => const PatternSummaryScreen());
           case '/outstandingRegister':
-            return MaterialPageRoute(builder: (_) => const OutstandingRegisterScreen());
+            return MaterialPageRoute(builder: (_) => OutstandingRegisterScreen());
           case '/outstandingCurrentWeek':
             return MaterialPageRoute(builder: (_) => const OutstandingCurrentWeekScreen());
           case '/scheduleSummary':
