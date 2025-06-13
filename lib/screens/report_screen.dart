@@ -11,8 +11,8 @@ class ReportScreen extends StatelessWidget {
   // Define report data model
   static final List<_ReportCardData> _reports = [
     _ReportCardData(
-      title: 'Registros Pendientes por Docente',
-      description: 'Lista de registros de asistencia que aún no han sido completados por docentes.',
+      title: 'Registros Pendientes Semana Actual',
+      description: 'Lista de registros de asistencia que aún no han sido completados por docentes esta semana.',
       icon: FontAwesomeIcons.clipboardList,
       routeName: '/outstandingRegister',
     ),
