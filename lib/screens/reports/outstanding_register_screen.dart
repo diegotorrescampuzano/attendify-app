@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/reports/outstanding_register_service.dart';
 
-// Corporate colors as in homeroom_summary_screen
 const Color backgroundColor = Color(0xFFF0F0E3);
 const Color primaryColor = Color(0xFF53A09D);
 
@@ -13,17 +11,12 @@ class OutstandingRegisterScreen extends StatefulWidget {
 }
 
 class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
-  // Default both dates to today
-  DateTime _startDate = DateTime.now();
-  DateTime _endDate = DateTime.now();
   bool _loading = false;
   List<Map<String, dynamic>> _outstanding = [];
 
-  // Campus selection
   List<Map<String, dynamic>> _campuses = [];
   String? _selectedCampusId;
 
-  // Service instance
   final OutstandingRegisterService _service = OutstandingRegisterService();
 
   @override
@@ -32,7 +25,6 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
     _loadCampuses();
   }
 
-  /// Loads campuses for the dropdown
   Future<void> _loadCampuses() async {
     print('OutstandingRegisterScreen: Loading campuses...');
     final campusSnap = await FirebaseFirestore.instance.collection('campuses').get();
@@ -40,24 +32,23 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
       _campuses = campusSnap.docs
           .map((doc) => {'id': doc.id, 'name': doc.data()['name'] ?? doc.id})
           .toList();
+      _selectedCampusId = null;
     });
     print('OutstandingRegisterScreen: Loaded ${_campuses.length} campuses');
   }
 
-  /// Loads outstanding registers for selected date range and campus
   Future<void> _loadOutstanding() async {
     if (_selectedCampusId == null) {
-      print('OutstandingRegisterScreen: No campus selected, aborting load');
+      print('OutstandingRegisterScreen: Missing campus, aborting load');
       return;
     }
     setState(() {
       _loading = true;
     });
-    print('OutstandingRegisterScreen: Loading outstanding registers for campus $_selectedCampusId from $_startDate to $_endDate');
+    print('OutstandingRegisterScreen: Loading outstanding registers for campus $_selectedCampusId for current week (till today)');
     final results = await _service.findOutstandingAttendance(
-        _startDate, _endDate, campusId: _selectedCampusId
+      campusId: _selectedCampusId!,
     );
-    // Sort is already handled in the service, but you can double-check here if needed
     setState(() {
       _outstanding = results;
       _loading = false;
@@ -65,108 +56,7 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
     print('OutstandingRegisterScreen: Loaded ${_outstanding.length} outstanding records');
   }
 
-  /// Picks the start date
-  Future<void> _pickStartDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _startDate,
-      firstDate: DateTime(2020),
-      lastDate: _endDate,
-      locale: const Locale('es', 'ES'),
-    );
-    if (picked != null && picked != _startDate) {
-      setState(() {
-        _startDate = picked;
-        if (_endDate.isBefore(_startDate)) {
-          _endDate = _startDate;
-        }
-      });
-    }
-  }
-
-  /// Picks the end date
-  Future<void> _pickEndDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _endDate,
-      firstDate: _startDate,
-      lastDate: DateTime.now(),
-      locale: const Locale('es', 'ES'),
-    );
-    if (picked != null && picked != _endDate) {
-      setState(() {
-        _endDate = picked;
-      });
-    }
-  }
-
-  /// Date pickers styled as in homeroom_summary_screen
-  Widget _buildDatePickers() {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Desde', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              GestureDetector(
-                onTap: _pickStartDate,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: primaryColor, width: 1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.calendar_today, color: primaryColor, size: 18),
-                      const SizedBox(width: 8),
-                      Text(DateFormat('yyyy-MM-dd').format(_startDate),
-                          style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Hasta', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              GestureDetector(
-                onTap: _pickEndDate,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: primaryColor, width: 1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.calendar_today, color: primaryColor, size: 18),
-                      const SizedBox(width: 8),
-                      Text(DateFormat('yyyy-MM-dd').format(_endDate),
-                          style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Campus dropdown and Cargar button on a separate row
-  Widget _buildCampusAndButtonRow() {
+  Widget _buildCampusDropdown() {
     return Row(
       children: [
         Expanded(
@@ -187,14 +77,22 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
             onChanged: (campusId) {
               setState(() {
                 _selectedCampusId = campusId;
-                _outstanding = [];
               });
             },
           ),
         ),
-        const SizedBox(width: 16),
+      ],
+    );
+  }
+
+  Widget _buildLoadButtonRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
         ElevatedButton(
-          onPressed: _loading || _selectedCampusId == null ? null : _loadOutstanding,
+          onPressed: _loading || _selectedCampusId == null
+              ? null
+              : _loadOutstanding,
           style: ElevatedButton.styleFrom(
             backgroundColor: primaryColor,
             foregroundColor: Colors.white,
@@ -211,14 +109,6 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
     );
   }
 
-  /// Helper to get Spanish weekday name from a date string (yyyy-MM-dd)
-  String _spanishDayName(String dateStr) {
-    final date = DateTime.tryParse(dateStr);
-    if (date == null) return '';
-    // Use Spanish locale for day name
-    return DateFormat.EEEE('es_ES').format(date);
-  }
-
   Widget _buildOutstandingList() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
@@ -231,17 +121,19 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
       separatorBuilder: (_, __) => Divider(),
       itemBuilder: (context, index) {
         final record = _outstanding[index];
-        final dayName = record['spanishDayName'] ?? _spanishDayName(record['date'] ?? '');
+        final dayName = record['spanishDayName'] ?? '';
         return ListTile(
           tileColor: Colors.white,
           title: Text(
-            record['teacherName'] ?? 'Sin docente',
+            record['teacherName'] ?? '',
             style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
           ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Fecha: ${record['date']}  (${dayName[0].toUpperCase()}${dayName.substring(1)})  Campus: ${record['campusName'] ?? ''}'),
+              Text('Fecha: ${record['date']}  (${dayName.isNotEmpty ? dayName[0].toUpperCase() + dayName.substring(1) : ''})  Campus: ${record['campusName'] ?? ''}'),
+              if ((record['gradeName'] ?? '').isNotEmpty)
+                Text('Grado: ${record['gradeName']}'),
               if ((record['subjectName'] ?? '').isNotEmpty)
                 Text('Materia: ${record['subjectName']}'),
               if ((record['homeroomName'] ?? '').isNotEmpty)
@@ -278,9 +170,9 @@ class _OutstandingRegisterScreenState extends State<OutstandingRegisterScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            _buildDatePickers(),
+            _buildCampusDropdown(),
             const SizedBox(height: 16),
-            _buildCampusAndButtonRow(),
+            _buildLoadButtonRow(),
             const SizedBox(height: 16),
             if (_outstanding.isNotEmpty)
               Padding(
