@@ -11,6 +11,12 @@ class ReportScreen extends StatelessWidget {
   // Define report data model
   static final List<_ReportCardData> _reports = [
     _ReportCardData(
+      title: 'Resumen Fuera de Horario',
+      description: 'Resumen semanal de asistencias registradas fuera o dentro del horario por docente, incluyendo el retraso promedio.',
+      icon: FontAwesomeIcons.clock,
+      routeName: '/offtheclockSummary',
+    ),
+    _ReportCardData(
       title: 'Registros Pendientes Semana Actual',
       description: 'Lista de registros de asistencia que aún no han sido completados por docentes esta semana.',
       icon: FontAwesomeIcons.clipboardList,
