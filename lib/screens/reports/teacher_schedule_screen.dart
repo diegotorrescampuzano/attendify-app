@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../../services/reports/teacher_schedule_service.dart';
 
 const Color backgroundColor = Color(0xFFF0F0E3);
@@ -23,7 +24,7 @@ const List<String> slotTimes = [
   '10:00-11:00',
   '11:00-12:00',
   '12:00-13:00',
-  '13:00-14:00',
+  '13:00-14:0',
   '14:00-15:00',
 ];
 
@@ -115,6 +116,25 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
     );
   }
 
+  Map<String, int> _calculateChartCounts() {
+    int libre = 0;
+    int enClase = 0;
+
+    for (final day in days) {
+      for (int slot = 1; slot <= 8; slot++) {
+        final info = _schedule[day]?[slot];
+        final subject = info?['subject'] ?? 'Libre';
+        if (subject == 'Libre' || subject.isEmpty) {
+          libre++;
+        } else {
+          enClase++;
+        }
+      }
+    }
+
+    return {'Libre': libre, 'En Clase': enClase};
+  }
+
   Widget _buildScheduleTable() {
     if (_schedule.isEmpty) {
       return const Padding(
@@ -186,6 +206,114 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
     );
   }
 
+  Widget _buildChartButton() {
+    if (_schedule.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.pie_chart),
+        label: const Text('Ver gráfico de disponibilidad'),
+        onPressed: () => _showChartDialog(),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showChartDialog() {
+    final counts = _calculateChartCounts();
+    final libre = counts['Libre'] ?? 0;
+    final enClase = counts['En Clase'] ?? 0;
+    final total = libre + enClase;
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(
+          'Disponibilidad del docente',
+          style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+        ),
+        content: SizedBox(
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 220,
+                child: PieChart(
+                  PieChartData(
+                    sections: [
+                      PieChartSectionData(
+                        color: Colors.grey,
+                        value: libre.toDouble(),
+                        title: libre > 0 ? '${((libre / total) * 100).toStringAsFixed(1)}%' : '',
+                        radius: 60,
+                        titleStyle: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      PieChartSectionData(
+                        color: primaryColor,
+                        value: enClase.toDouble(),
+                        title: enClase > 0 ? '${((enClase / total) * 100).toStringAsFixed(1)}%' : '',
+                        radius: 60,
+                        titleStyle: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 40,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: Colors.grey,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Libre ($libre)'),
+                  const SizedBox(width: 16),
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: primaryColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('En Clase ($enClase)'),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: Text('Cerrar', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -235,6 +363,7 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
             ),
             const SizedBox(height: 12),
             Expanded(child: _buildScheduleTable()),
+            _buildChartButton(),
           ],
         ),
       ),
