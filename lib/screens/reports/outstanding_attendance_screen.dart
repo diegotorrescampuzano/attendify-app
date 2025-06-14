@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../../services/reports/outstanding_currentweek_service.dart';
+import '../../services/reports/outstanding_currentweek_service.dart';
 
 const Color backgroundColor = Color(0xFFF0F0E3);
 const Color primaryColor = Color(0xFF53A09D);
@@ -53,6 +53,7 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
   int _registeredCount = 0;
   int _pendingCount = 0;
   int _libreCount = 0;
+  int _futureCount = 0;
 
   @override
   void initState() {
@@ -98,7 +99,6 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
     if (_selectedTeacherId == null || _selectedCampusId == null) return;
     setState(() => _loading = true);
 
-    // Fetch teacher lectures
     final lecturesList = await _service.fetchTeacherLectures(
       campusId: _selectedCampusId!,
       teacherIds: [_selectedTeacherId!],
@@ -107,7 +107,6 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
       for (final day in days) day: {for (int slot = 1; slot <= 8; slot++) slot: {'libre': true}}
     };
     String teacherId = _selectedTeacherId!;
-    // Build schedule from lectures
     if (lecturesList.isNotEmpty) {
       final lectures = lecturesList.first['lectures'] as Map<String, dynamic>? ?? {};
       for (final day in days) {
@@ -129,7 +128,6 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
       }
     }
 
-    // Fetch registered attendance
     final weekRange = _getCurrentWeekRange();
     final registered = await _service.fetchRegisteredAttendance(
       campusId: _selectedCampusId!,
@@ -155,40 +153,136 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
     };
   }
 
-  String getReferenceIdOrValue(dynamic ref) {
+  String getId(dynamic ref) {
     if (ref == null) return '';
     if (ref is DocumentReference) return ref.id;
     if (ref is String) return ref;
     return ref.toString();
   }
 
+  bool _isDayInFuture(String day) {
+    final dayIndex = days.indexOf(day);
+    final now = DateTime.now();
+    final currentDayIndex = now.weekday - 1; // Monday=0, Sunday=6
+    return dayIndex > currentDayIndex;
+  }
+
   Map<String, int> _calculateChartCounts() {
     int libre = 0;
     int registered = 0;
-    int pending = 0;
+    int pendiente = 0;
+    int futura = 0;
     for (final day in days) {
       for (int slot = 1; slot <= 8; slot++) {
         final info = _teacherSchedule[day]?[slot];
-        if (info == null || info['libre'] == true) {
+        final homeroomId = getId(info?['homeroom']);
+        final subjectId = getId(info?['subject']);
+        final homeroomName = _homeroomNames[homeroomId] ?? homeroomId;
+        final subjectName = _subjectNames[subjectId] ?? subjectId;
+        final isLibre = info == null ||
+            info['libre'] == true ||
+            (homeroomName.trim().isEmpty && subjectName.trim().isEmpty);
+
+        if (isLibre) {
           libre++;
         } else {
-          final homeroomId = getReferenceIdOrValue(info['homeroom']);
-          final subjectId = getReferenceIdOrValue(info['subject']);
           final slotStr = slot.toString();
           final dayStr = day.toLowerCase();
           final key = '$_selectedTeacherId|$dayStr|$slotStr|$homeroomId|$subjectId';
-          if (_registeredAttendance.contains(key)) {
+          final registeredFlag = _registeredAttendance.contains(key);
+          final isFutureDay = _isDayInFuture(day);
+          if (registeredFlag) {
             registered++;
+          } else if (isFutureDay) {
+            futura++;
           } else {
-            pending++;
+            pendiente++;
           }
         }
       }
     }
     _libreCount = libre;
     _registeredCount = registered;
-    _pendingCount = pending;
-    return {'Libre': libre, 'Registrada': registered, 'Pendiente': pending};
+    _pendingCount = pendiente;
+    _futureCount = futura;
+    return {
+      'Libre': libre,
+      'Registrada': registered,
+      'Pendiente': pendiente,
+      'Futura': futura,
+    };
+  }
+
+  Widget _buildLegend() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 16),
+      child: Wrap(
+        spacing: 24,
+        runSpacing: 12,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 18,
+                height: 18,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text('Pendiente (pasado/hoy, no registrada)', style: TextStyle(fontSize: 15)),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 18,
+                height: 18,
+                decoration: const BoxDecoration(
+                  color: Colors.orange,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text('Futura (futuro, no registrada)', style: TextStyle(fontSize: 15)),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 18,
+                height: 18,
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text('Registrada', style: TextStyle(fontSize: 15)),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.13),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text('Libre (sin clase programada)', style: TextStyle(fontSize: 15)),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildScheduleTable() {
@@ -216,39 +310,51 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
                 DataCell(Text('S$slotNum\n${slotTimes[slotIdx]}')),
                 ...days.map((day) {
                   final info = _teacherSchedule[day]?[slotNum];
-                  if (info == null || info['libre'] == true) {
+                  final homeroomId = getId(info?['homeroom']);
+                  final subjectId = getId(info?['subject']);
+                  final homeroomName = _homeroomNames[homeroomId] ?? homeroomId;
+                  final subjectName = _subjectNames[subjectId] ?? subjectId;
+
+                  final isLibre = info == null ||
+                      info['libre'] == true ||
+                      (homeroomName.trim().isEmpty && subjectName.trim().isEmpty);
+
+                  if (isLibre) {
                     return DataCell(Container(
                       alignment: Alignment.center,
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.13),
+                        color: Colors.green.withOpacity(0.13),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text(
                         'Libre',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey,
+                          color: Colors.green,
                         ),
                         textAlign: TextAlign.center,
                       ),
                     ));
                   }
-                  final homeroomId = getReferenceIdOrValue(info['homeroom']);
-                  final subjectId = getReferenceIdOrValue(info['subject']);
+
                   final slotStr = slotNum.toString();
                   final dayStr = day.toLowerCase();
                   final key = '$_selectedTeacherId|$dayStr|$slotStr|$homeroomId|$subjectId';
                   final registered = _registeredAttendance.contains(key);
-                  final homeroomName = _homeroomNames[homeroomId] ?? homeroomId;
-                  final subjectName = _subjectNames[subjectId] ?? subjectId;
+                  final isFutureDay = _isDayInFuture(day);
+
+                  Color getPendingColor() {
+                    return isFutureDay ? Colors.orange.withOpacity(0.4) : Colors.red.withOpacity(0.4);
+                  }
+
                   return DataCell(Container(
                     alignment: Alignment.center,
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
                       color: registered
                           ? Colors.green.withOpacity(0.4)
-                          : Colors.red.withOpacity(0.4),
+                          : getPendingColor(),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Column(
@@ -298,7 +404,8 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
     final libre = counts['Libre'] ?? 0;
     final registrada = counts['Registrada'] ?? 0;
     final pendiente = counts['Pendiente'] ?? 0;
-    final total = libre + registrada + pendiente;
+    final futura = counts['Futura'] ?? 0;
+    final total = libre + registrada + pendiente + futura;
 
     showDialog(
       context: context,
@@ -308,7 +415,7 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
           style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
         ),
         content: SizedBox(
-          width: 320,
+          width: 340,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -328,6 +435,17 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      if (futura > 0)
+                        PieChartSectionData(
+                          color: Colors.orange,
+                          value: futura.toDouble(),
+                          title: '${((futura / total) * 100).toStringAsFixed(1)}%',
+                          radius: 60,
+                          titleStyle: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       if (registrada > 0)
                         PieChartSectionData(
                           color: Colors.green,
@@ -341,12 +459,12 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
                         ),
                       if (libre > 0)
                         PieChartSectionData(
-                          color: Colors.grey,
+                          color: Colors.green.withOpacity(0.13),
                           value: libre.toDouble(),
                           title: '${((libre / total) * 100).toStringAsFixed(1)}%',
                           radius: 60,
                           titleStyle: const TextStyle(
-                            color: Colors.white,
+                            color: Colors.green,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -357,41 +475,70 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 16,
                 children: [
-                  Container(
-                    width: 16,
-                    height: 16,
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('Pendiente ($pendiente)'),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text('Pendiente ($pendiente)'),
-                  const SizedBox(width: 16),
-                  Container(
-                    width: 16,
-                    height: 16,
-                    decoration: const BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: const BoxDecoration(
+                          color: Colors.orange,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('Futura ($futura)'),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text('Registrada ($registrada)'),
-                  const SizedBox(width: 16),
-                  Container(
-                    width: 16,
-                    height: 16,
-                    decoration: const BoxDecoration(
-                      color: Colors.grey,
-                      shape: BoxShape.circle,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('Registrada ($registrada)'),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text('Libre ($libre)'),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.13),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('Libre ($libre)'),
+                    ],
+                  ),
                 ],
               ),
             ],
@@ -474,6 +621,7 @@ class _OutstandingAttendanceScreenState extends State<OutstandingAttendanceScree
             ),
             const SizedBox(height: 12),
             Expanded(child: _buildScheduleTable()),
+            _buildLegend(),
             _buildChartButton(),
           ],
         ),
