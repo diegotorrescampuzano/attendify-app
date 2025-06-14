@@ -50,6 +50,9 @@ import 'screens/splash_screen.dart';
 // Import the license screen
 import 'screens/license_screen.dart';
 
+// Import the new off the clock summary report screen
+import 'screens/reports/offtheclock_summary_screen.dart';
+
 // The entry point of the application — must be `main()` in Dart
 void main() async {
   // Ensures that Flutter is fully initialized before we use platform channels or Firebase
@@ -116,6 +119,8 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const OutstandingCurrentWeekScreen());
           case '/scheduleSummary':
             return MaterialPageRoute(builder: (_) => const ScheduleSummaryScreen());
+          case '/offtheclockSummary':
+            return MaterialPageRoute(builder: (_) => OffTheClockSummaryScreen());
           case '/credits':
             return MaterialPageRoute(builder: (_) => CreditsScreen());
           case '/educationalLevel':
