@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
-import '../services/auth_service.dart'; // Import AuthService for logout
+import '../services/auth_service.dart';
+// Add these imports for direct navigation
+import '../screens/report_screen.dart';
+import '../screens/campus_screen.dart';
 
-/// Drawer widget with a profile, license, and logout option.
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
 
@@ -47,6 +49,45 @@ class AppDrawer extends StatelessWidget {
                 ),
               ),
 
+              // Mis Horarios
+              ListTile(
+                leading: const Icon(Icons.schedule, color: Color(0xFF53a09d)),
+                title: const Text('Mis Horarios'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/scheduleSummary');
+                  print('[AppDrawer] Navigated to Mis Horarios');
+                },
+              ),
+
+              // Mis Reportes
+              ListTile(
+                leading: const Icon(Icons.assignment, color: Color(0xFF53a09d)),
+                title: const Text('Mis Reportes'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ReportScreen()),
+                  );
+                  print('[AppDrawer] Navigated to Mis Reportes');
+                },
+              ),
+
+              // Registrar Asistencia
+              ListTile(
+                leading: const Icon(Icons.check_circle, color: Color(0xFF53a09d)),
+                title: const Text('Registrar Asistencia'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => CampusScreen()),
+                  );
+                  print('[AppDrawer] Navigated to Registrar Asistencia');
+                },
+              ),
+
               // Profile menu option
               ListTile(
                 leading: const Icon(Icons.person, color: Color(0xFF53a09d)),
@@ -85,15 +126,10 @@ class AppDrawer extends StatelessWidget {
                 leading: const Icon(Icons.logout, color: Color(0xFF53a09d)),
                 title: const Text('Cerrar sesión'),
                 onTap: () async {
-                  // Close the drawer first
                   Navigator.pop(context);
-
-                  // Log out the user using AuthService
                   print('[AppDrawer] Logging out user...');
                   await AuthService.logout();
                   print('[AppDrawer] User logged out. Navigating to login screen.');
-
-                  // Navigate to login screen and remove all previous routes
                   Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
                 },
               ),

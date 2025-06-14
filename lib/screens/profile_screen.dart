@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
 import '../widgets/app_drawer.dart';
+import './reports/schedule_summary_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -136,6 +137,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.school_outlined,
               label: 'Rol',
               value: _userData!['role'] ?? 'No disponible',
+            ),
+            const SizedBox(height: 32),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.schedule),
+                label: const Text('Ver mis horarios'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ScheduleSummaryScreen(),
+                    ),
+                  );
+                },
+              ),
             ),
             const SizedBox(height: 32),
           ],
