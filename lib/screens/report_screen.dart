@@ -41,6 +41,12 @@ class ReportScreen extends StatelessWidget {
       routeName: '/outstandingCurrentWeek',
     ),
     _ReportCardData(
+      title: 'Asistencias Pendientes (Semana Actual)',
+      description: 'Visualiza rápidamente la asistencia pendiente de registrar esta semana para un docente. Los bloques pendientes se muestran en rojo y los registrados en verde.',
+      icon: FontAwesomeIcons.exclamationCircle,
+      routeName: '/outstandingAttendance',
+    ),
+    _ReportCardData(
       title: 'Horario del Estudiante',
       description: 'Visualiza el horario semanal del estudiante con el estado de asistencia por materia y franja horaria.',
       icon: FontAwesomeIcons.calendarWeek, // Or another relevant icon
