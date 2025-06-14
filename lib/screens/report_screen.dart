@@ -35,6 +35,12 @@ class ReportScreen extends StatelessWidget {
       routeName: '/outstandingCurrentWeek',
     ),
     _ReportCardData(
+      title: 'Horario del Estudiante',
+      description: 'Visualiza el horario semanal del estudiante con el estado de asistencia por materia y franja horaria.',
+      icon: FontAwesomeIcons.calendarWeek, // Or another relevant icon
+      routeName: '/studentSchedule',
+    ),
+    _ReportCardData(
       title: 'Asistencia por Salón',
       description: 'Estadísticas de asistencia para un salón o grupo específico.',
       icon: FontAwesomeIcons.chalkboardTeacher,
