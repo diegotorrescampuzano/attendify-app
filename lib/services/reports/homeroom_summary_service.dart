@@ -36,7 +36,7 @@ class HomeroomSummaryService {
     required DateTime endDate,
   }) async {
     if (homeroomIds.isEmpty || attendanceTypes.isEmpty) return [];
-    // Get all attendance docs for selected homerooms and date range
+
     final snapshot = await _db
         .collection('attendances')
         .where('homeroomId', whereIn: homeroomIds)
@@ -44,10 +44,12 @@ class HomeroomSummaryService {
         .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
         .get();
 
-    List<Map<String, dynamic>> result = [];
+    final List<Map<String, dynamic>> result = [];
+
     for (final doc in snapshot.docs) {
       final data = doc.data();
       final attendanceRecords = data['attendanceRecords'] as Map<String, dynamic>? ?? {};
+
       attendanceRecords.forEach((studentId, rec) {
         if (attendanceTypes.contains(rec['label'])) {
           result.add({
@@ -64,6 +66,23 @@ class HomeroomSummaryService {
         }
       });
     }
+
+    // Sorting implementation
+    result.sort((a, b) {
+      // Primary sort: Date descending
+      final dateCompare = (b['date'] as Timestamp).compareTo(a['date'] as Timestamp);
+      if (dateCompare != 0) return dateCompare;
+
+      // Secondary sort: Homeroom ascending
+      final homeroomCompare = (a['homeroomName'] ?? '')
+          .compareTo(b['homeroomName'] ?? '');
+      if (homeroomCompare != 0) return homeroomCompare;
+
+      // Tertiary sort: Student name ascending
+      return (a['studentName'] ?? '')
+          .compareTo(b['studentName'] ?? '');
+    });
+
     return result;
   }
 }

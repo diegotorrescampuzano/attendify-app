@@ -38,7 +38,8 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
   List<Map<String, dynamic>> _attendanceSummary = [];
   bool _loading = false;
 
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 7));
+  // Set both dates to today
+  DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
 
   @override
@@ -470,7 +471,6 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
     }
     final homerooms = chartData.keys.toList();
     final types = _selectedAttendanceTypes;
-
     showDialog(
       context: context,
       builder: (context) {
@@ -565,7 +565,7 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
       backgroundColor: backgroundColor,
       appBar: AppBar(
         backgroundColor: primaryColor,
-        title: const Text('Resumen por Homeroom'),
+        title: const Text('Resumen por Salón'),
         centerTitle: true,
       ),
       body: Padding(
@@ -671,7 +671,11 @@ class _HomeroomSummaryScreenState extends State<HomeroomSummaryScreen> {
               child: const Text('Generar Resumen'),
             ),
             const SizedBox(height: 24),
-            Expanded(child: _buildTable()),
+            Expanded(
+              child: SingleChildScrollView(
+                child: _buildTable(),
+              ),
+            ),
             if (_attendanceSummary.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 16),

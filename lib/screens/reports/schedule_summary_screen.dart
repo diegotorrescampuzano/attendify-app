@@ -75,7 +75,7 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
       final campuses = await _service.fetchCampuses();
       setState(() {
         _campuses = campuses;
-        _selectedCampusId = null; // No campus selected by default
+        _selectedCampusId = null;
         _teachers = [];
         _selectedTeacherIds = [];
         _teacherLectures = [];
@@ -99,7 +99,7 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
       final teachers = await _service.fetchTeachersForCampus(_selectedCampusId!);
       setState(() {
         _teachers = teachers;
-        _selectedTeacherIds = []; // No teacher selected by default
+        _selectedTeacherIds = [];
         _teacherLectures = [];
       });
     } catch (e) {
@@ -159,37 +159,91 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
     return colors[input.hashCode.abs() % colors.length];
   }
 
-  Widget _buildTeacherMultiSelect() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Docentes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        ..._teachers.map((teacher) {
-          final isSelected = _selectedTeacherIds.contains(teacher['id']);
-          return CheckboxListTile(
-            value: isSelected,
-            title: Text(teacher['name']),
-            onChanged: (checked) {
-              setState(() {
-                if (checked == true) {
-                  _selectedTeacherIds.add(teacher['id']);
-                } else {
-                  _selectedTeacherIds.remove(teacher['id']);
-                }
-              });
-              if (_selectedTeacherIds.isNotEmpty) {
-                _loadTeacherLectures();
-              } else {
-                setState(() {
-                  _teacherLectures = [];
-                });
-              }
+  // --- EXACT MULTISELECT BUTTON FROM outstanding_currentweek_screen.dart ---
+  Future<void> _showTeacherMultiSelect() async {
+    if (_teachers.isEmpty) return;
+    final selected = Set<String>.from(_selectedTeacherIds);
+
+    final result = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: ListView.builder(
+            itemCount: _teachers.length,
+            itemBuilder: (context, index) {
+              final teacher = _teachers[index];
+              final isSelected = selected.contains(teacher['id']);
+              return ListTile(
+                onTap: () {
+                  if (isSelected) {
+                    selected.remove(teacher['id']);
+                  } else {
+                    selected.add(teacher['id']);
+                  }
+                  Navigator.of(context).pop(Set<String>.from(selected));
+                },
+                leading: Checkbox(
+                  value: isSelected,
+                  onChanged: (checked) {
+                    if (checked == true) {
+                      selected.add(teacher['id']);
+                    } else {
+                      selected.remove(teacher['id']);
+                    }
+                    Navigator.of(context).pop(Set<String>.from(selected));
+                  },
+                ),
+                title: Text(teacher['name']),
+              );
             },
-          );
-        }).toList(),
-      ],
+          ),
+        );
+      },
+    );
+    if (result != null) {
+      setState(() {
+        _selectedTeacherIds = result.toList();
+        _teacherLectures = [];
+      });
+      await _loadTeacherLectures();
+    }
+  }
+
+  Widget _buildTeacherMultiSelectButton() {
+    return GestureDetector(
+      onTap: _showTeacherMultiSelect,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.people, color: Colors.grey),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _selectedTeacherIds.isEmpty
+                    ? 'Seleccionar Docentes'
+                    : _teachers
+                    .where((t) => _selectedTeacherIds.contains(t['id']))
+                    .map((t) => t['name'])
+                    .join(', '),
+                style: const TextStyle(fontSize: 16, color: Colors.black87),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down),
+          ],
+        ),
+      ),
     );
   }
+  // --- END MULTISELECT BUTTON ---
 
   Widget _buildScheduleTable() {
     if (_loading) {
@@ -258,7 +312,6 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ));
-
       for (final day in days) {
         final dayLectures = (lecture['lectures'][day.toLowerCase()] ?? []) as List<dynamic>;
         for (int slot = 1; slot <= 8; slot++) {
@@ -374,9 +427,9 @@ class _ScheduleSummaryScreenState extends State<ScheduleSummaryScreen> {
               },
             ),
             const SizedBox(height: 12),
-            // Teacher multi-select
+            // Teacher multi-select button
             if (_teachers.isNotEmpty)
-              _buildTeacherMultiSelect(),
+              _buildTeacherMultiSelectButton(),
             const SizedBox(height: 16),
             // Schedule table
             Expanded(child: _buildScheduleTable()),
