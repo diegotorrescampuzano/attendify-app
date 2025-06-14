@@ -1,11 +1,10 @@
-// /lib/reports/teacher_summary_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../../services/reports/teacher_summary_service.dart';
 
-import '../../services/reports/teacher_summary_service.dart';
-import '../../services/auth_service.dart';
+const Color backgroundColor = Color(0xFFF0F0E3);
+const Color primaryColor = Color(0xFF53A09D);
 
 const Map<String, Map<String, dynamic>> attendanceLabels = {
   'A': {'description': 'Asiste', 'color': 0xFF4CAF50},
@@ -17,376 +16,387 @@ const Map<String, Map<String, dynamic>> attendanceLabels = {
 };
 
 class TeacherSummaryScreen extends StatefulWidget {
-  const TeacherSummaryScreen({super.key});
+  const TeacherSummaryScreen({Key? key}) : super(key: key);
 
   @override
   State<TeacherSummaryScreen> createState() => _TeacherSummaryScreenState();
 }
 
 class _TeacherSummaryScreenState extends State<TeacherSummaryScreen> {
-  static const Color backgroundColor = Color(0xFFF0F0E3);
-  static const Color primaryColor = Color(0xFF53A09D);
-
   final TeacherSummaryService _service = TeacherSummaryService();
-
+  List<Map<String, dynamic>> _campuses = [];
   List<Map<String, dynamic>> _teachers = [];
-  String? _selectedTeacherRefId;
-
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
+  String? _selectedCampusId;
+  String? _selectedTeacherId;
+  DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
-
+  List<Map<String, dynamic>> _summary = [];
   bool _loading = false;
-
-  Map<String, Map<String, int>> _summaryData = {};
 
   @override
   void initState() {
     super.initState();
-    _loadTeachers();
+    _loadCampuses();
+  }
+
+  Future<void> _loadCampuses() async {
+    setState(() => _loading = true);
+    final campuses = await _service.fetchCampuses();
+    setState(() {
+      _campuses = campuses;
+      _loading = false;
+    });
   }
 
   Future<void> _loadTeachers() async {
+    if (_selectedCampusId == null) return;
     setState(() => _loading = true);
-    try {
-      final teachers = await _service.fetchTeachers();
-      final currentUserRefId = AuthService.currentUserData?['refId'];
-      setState(() {
-        _teachers = teachers;
-        _selectedTeacherRefId = teachers.any((t) => t['refId'] == currentUserRefId)
-            ? currentUserRefId
-            : (teachers.isNotEmpty ? teachers.first['refId'] : null);
-      });
-      if (_selectedTeacherRefId != null) {
-        await _fetchSummary();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error cargando docentes: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    final teachers = await _service.fetchTeachers(campusId: _selectedCampusId!);
+    setState(() {
+      _teachers = teachers;
+      _selectedTeacherId = null;
+      _loading = false;
+    });
   }
 
-  Future<void> _fetchSummary() async {
-    if (_selectedTeacherRefId == null) return;
+  Future<void> _loadSummary() async {
+    if (_selectedTeacherId == null) return;
     setState(() => _loading = true);
-    try {
-      final data = await _service.fetchAttendanceSummary(
-        teacherRefId: _selectedTeacherRefId!,
-        startDate: _startDate,
-        endDate: _endDate,
-      );
-      setState(() {
-        _summaryData = data;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error cargando resumen: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _pickStartDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _startDate,
-      firstDate: DateTime(2020),
-      lastDate: _endDate,
+    final summary = await _service.fetchTeacherAttendanceSummary(
+      teacherId: _selectedTeacherId!,
+      startDate: _startDate,
+      endDate: _endDate,
     );
-    if (picked != null && picked != _startDate) {
-      setState(() {
-        _startDate = picked;
-      });
-      await _fetchSummary();
-    }
+    setState(() {
+      _summary = summary;
+      _loading = false;
+    });
   }
 
-  Future<void> _pickEndDate() async {
-    final picked = await showDatePicker(
+  Future<void> _pickDateRange() async {
+    final picked = await showDateRangePicker(
       context: context,
-      initialDate: _endDate,
-      firstDate: _startDate,
+      firstDate: DateTime(2024, 1, 1),
       lastDate: DateTime.now(),
+      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
+      builder: (context, child) => Theme(
+        data: ThemeData(
+          colorScheme: ColorScheme.light(primary: primaryColor),
+        ),
+        child: child!,
+      ),
     );
-    if (picked != null && picked != _endDate) {
+    if (picked != null) {
       setState(() {
-        _endDate = picked;
+        _startDate = picked.start;
+        _endDate = picked.end;
       });
-      await _fetchSummary();
     }
   }
 
-  /// Compute total counts per attendance label across all subjects
-  Map<String, int> get _totalCounts {
-    final totals = <String, int>{};
-    for (var label in attendanceLabels.keys) {
-      totals[label] = 0;
+  Widget _buildCampusDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedCampusId,
+      items: _campuses.map<DropdownMenuItem<String>>((campus) {
+        return DropdownMenuItem<String>(
+          value: campus['id'],
+          child: Text(campus['name'] ?? ''),
+        );
+      }).toList(),
+      decoration: InputDecoration(
+        labelText: 'Selecciona un campus',
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      onChanged: (String? value) {
+        setState(() {
+          _selectedCampusId = value;
+          _summary = [];
+        });
+        _loadTeachers();
+      },
+    );
+  }
+
+  Widget _buildTeacherDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedTeacherId,
+      items: _teachers.map<DropdownMenuItem<String>>((teacher) {
+        return DropdownMenuItem<String>(
+          value: teacher['id'],
+          child: Text(teacher['name'] ?? ''),
+        );
+      }).toList(),
+      decoration: InputDecoration(
+        labelText: 'Selecciona un docente',
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      onChanged: (String? value) {
+        setState(() {
+          _selectedTeacherId = value;
+          _summary = [];
+        });
+      },
+    );
+  }
+
+  Widget _buildSummaryTable() {
+    if (_summary.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(24.0),
+        child: Text('No hay registros de asistencia para este docente en el rango seleccionado.'),
+      );
     }
-    for (var subjectCounts in _summaryData.values) {
-      for (var label in attendanceLabels.keys) {
-        totals[label] = (totals[label] ?? 0) + (subjectCounts[label] ?? 0);
+
+    // Compute totals by attendance type
+    final Map<String, int> totalCounts = {};
+    for (final row in _summary) {
+      final counts = row['counts'] as Map<String, int>;
+      for (final label in attendanceLabels.keys) {
+        totalCounts[label] = (totalCounts[label] ?? 0) + (counts[label] ?? 0);
       }
     }
-    return totals;
+
+    return Expanded(
+      child: Scrollbar(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.vertical,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowColor: MaterialStateProperty.all(primaryColor.withOpacity(0.1)),
+              columns: [
+                const DataColumn(label: Text('Grupo')),
+                const DataColumn(label: Text('Materia')),
+                ...attendanceLabels.entries.map((e) => DataColumn(label: Text(e.value['description']))),
+              ],
+              rows: [
+                ..._summary.map((row) {
+                  final counts = row['counts'] as Map<String, int>;
+                  return DataRow(cells: [
+                    DataCell(Text(row['homeroomName'] ?? '', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold))),
+                    DataCell(Text(row['subjectName'] ?? '')),
+                    ...attendanceLabels.entries.map((e) => DataCell(
+                      counts.containsKey(e.key)
+                          ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Color(e.value['color']).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          counts[e.key].toString(),
+                          style: TextStyle(
+                            color: Color(e.value['color']),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                          : const SizedBox.shrink(),
+                    )),
+                  ]);
+                }),
+                // Totals row
+                DataRow(
+                  color: MaterialStateProperty.all(primaryColor.withOpacity(0.08)),
+                  cells: [
+                    const DataCell(Text('Total', style: TextStyle(fontWeight: FontWeight.bold))),
+                    const DataCell(Text('')),
+                    ...attendanceLabels.entries.map((e) => DataCell(
+                      Text(
+                        (totalCounts[e.key] ?? 0).toString(),
+                        style: TextStyle(
+                          color: Color(e.value['color']),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartLegend(Map<String, int> totalCounts) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: attendanceLabels.entries.map((e) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2.0),
+        child: Row(
+          children: [
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: Color(e.value['color']),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              e.value['description'],
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '(${totalCounts[e.key] ?? 0})',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ))
+          .toList(),
+    );
+  }
+
+  Widget _buildChartButton(Map<String, int> totalCounts) {
+    if (_summary.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.pie_chart),
+        label: const Text('Ver gráfico de resumen'),
+        onPressed: () => _showSummaryChart(totalCounts),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSummaryChart(Map<String, int> totalCounts) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(
+          'Distribución de asistencias',
+          style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+        ),
+        content: SizedBox(
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 220,
+                child: PieChart(
+                  PieChartData(
+                    sections: attendanceLabels.entries.map((e) {
+                      final count = totalCounts[e.key] ?? 0;
+                      final total = totalCounts.values.fold(0, (p, v) => p + v);
+                      final percent = total > 0 ? (count / total * 100).toStringAsFixed(1) : '0';
+                      return PieChartSectionData(
+                        color: Color(e.value['color']),
+                        value: count.toDouble(),
+                        title: '$percent%',
+                        radius: 60,
+                        titleStyle: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    }).toList(),
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 40,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildChartLegend(totalCounts),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: Text('Cerrar', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final totals = _totalCounts;
-    final totalSum = totals.values.fold<int>(0, (sum, val) => sum + val);
+    final dateRangeLabel =
+        '${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}';
+
+    // Compute totals for chart
+    final Map<String, int> totalCounts = {};
+    for (final row in _summary) {
+      final counts = row['counts'] as Map<String, int>;
+      for (final label in attendanceLabels.keys) {
+        totalCounts[label] = (totalCounts[label] ?? 0) + (counts[label] ?? 0);
+      }
+    }
 
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Resumen de Asistencias por Docente'),
+        title: const Text('Resumen de asistencias por docente'),
         backgroundColor: primaryColor,
+        centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16.0),
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Teacher selector dropdown
-            Text('Docente:', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            DropdownButton<String>(
-              isExpanded: true,
-              value: _selectedTeacherRefId,
-              items: _teachers.map((teacher) {
-                return DropdownMenuItem<String>(
-                  value: teacher['refId'],
-                  child: Text(teacher['name'] ?? 'Sin nombre'),
-                );
-              }).toList(),
-              onChanged: (value) async {
-                setState(() {
-                  _selectedTeacherRefId = value;
-                });
-                await _fetchSummary();
-              },
+            Text(
+              'Rango de fechas: $dateRangeLabel',
+              style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor),
             ),
-            const SizedBox(height: 16),
-
-            // Date range pickers
+            const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Fecha inicio:', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
-                      TextButton(
-                        onPressed: _pickStartDate,
-                        child: Text(DateFormat('dd/MM/yyyy').format(_startDate)),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Fecha fin:', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
-                      TextButton(
-                        onPressed: _pickEndDate,
-                        child: Text(DateFormat('dd/MM/yyyy').format(_endDate)),
-                      ),
-                    ],
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.date_range),
+                  label: const Text('Cambiar rango'),
+                  onPressed: _pickDateRange,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ],
             ),
-
-            // Legend with color circles and descriptions
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: attendanceLabels.entries.map((entry) {
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: Color(entry.value['color']),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(entry.value['description']),
-                  ],
-                );
-              }).toList(),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Pie Chart for attendance totals
-            if (totalSum > 0)
-              SizedBox(
-                height: 200,
-                child: PieChart(
-                  PieChartData(
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 40,
-                    sections: attendanceLabels.entries.map((entry) {
-                      final label = entry.key;
-                      final count = totals[label] ?? 0;
-                      if (count == 0) return null;
-                      final percentage = (count / totalSum) * 100;
-                      return PieChartSectionData(
-                        color: Color(entry.value['color']),
-                        value: count.toDouble(),
-                        title: '${percentage.toStringAsFixed(1)}%',
-                        radius: 50,
-                        titleStyle: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      );
-                    }).whereType<PieChartSectionData>().toList(),
-                  ),
+            _buildCampusDropdown(),
+            const SizedBox(height: 16),
+            _buildTeacherDropdown(),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.search),
+              label: const Text('Buscar resumen'),
+              onPressed: _selectedTeacherId == null ? null : _loadSummary,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              )
-            else
-              const Center(child: Text('No hay datos para mostrar en el gráfico.')),
-
-            const SizedBox(height: 24),
-
-            // Summary report header
-            Text(
-              'Resumen de asistencias',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
-            ),
-            const SizedBox(height: 12),
-
-            // Table header row with colored circles
-            Container(
-              color: primaryColor.withOpacity(0.1),
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              child: Row(
-                children: [
-                  const Expanded(
-                    flex: 3,
-                    child: Text('Asignatura', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  ...attendanceLabels.entries.map((entry) {
-                    return Expanded(
-                      flex: 2,
-                      child: Tooltip(
-                        message: entry.value['description'],
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          decoration: BoxDecoration(
-                            color: Color(entry.value['color']),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ],
               ),
             ),
-
-            // Summary data list + totals row
-            Expanded(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: _summaryData.isEmpty
-                        ? const Center(child: Text('No hay datos para los filtros seleccionados.'))
-                        : ListView.builder(
-                      itemCount: _summaryData.length,
-                      itemBuilder: (context, index) {
-                        final subject = _summaryData.keys.elementAt(index);
-                        final counts = _summaryData[subject]!;
-
-                        return Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(color: Colors.grey.shade300),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(flex: 3, child: Text(subject)),
-                              ...attendanceLabels.keys.map((labelKey) {
-                                final count = counts[labelKey] ?? 0;
-                                return Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    '$count',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Color(attendanceLabels[labelKey]!['color']),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  // Totals row
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.15),
-                      border: Border(
-                        top: BorderSide(color: Colors.grey.shade500),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          flex: 3,
-                          child: Text(
-                            'Totales',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        ...attendanceLabels.keys.map((labelKey) {
-                          final count = totals[labelKey] ?? 0;
-                          return Expanded(
-                            flex: 2,
-                            child: Text(
-                              '$count',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Color(attendanceLabels[labelKey]!['color']),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(height: 16),
+            _buildSummaryTable(),
+            _buildChartButton(totalCounts),
           ],
         ),
       ),
