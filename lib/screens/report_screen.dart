@@ -29,6 +29,12 @@ class ReportScreen extends StatelessWidget {
       routeName: '/scheduleSummary',
     ),
     _ReportCardData(
+      title: 'Horario por Docente',
+      description: 'Visualiza el horario semanal de un docente por campus.',
+      icon: FontAwesomeIcons.calendarAlt,
+      routeName: '/teacherSchedule',
+    ),
+    _ReportCardData(
       title: 'Asistencias Pendientes (Semana Actual)',
       description: 'Visualiza rápidamente qué docentes tienen clases con asistencia pendiente de registrar esta semana. Los bloques pendientes se muestran en rojo y los registrados en verde.',
       icon: FontAwesomeIcons.exclamationCircle,
