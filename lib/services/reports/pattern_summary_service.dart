@@ -1,154 +1,86 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-const Map<String, Map<String, dynamic>> attendanceLabels = {
-  'A': {'description': 'Asiste', 'color': 0xFF4CAF50},
-  'T': {'description': 'Tarde', 'color': 0xFFFF9800},
-  'E': {'description': 'Evasión', 'color': 0xFFF44336},
-  'I': {'description': 'Inasistencia', 'color': 0xFF757575},
-  'IJ': {'description': 'Inasistencia Justificada', 'color': 0xFF607D8B},
-  'P': {'description': 'Retiro con acudiente', 'color': 0xFF9C27B0},
-};
-
 class PatternSummaryService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Fetch all students with their homeroom references
-  Future<List<Map<String, dynamic>>> fetchAllStudents() async {
-    final snapshot = await _firestore.collection('students').get();
-
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      return {
-        'refId': doc.id,
-        'name': data['name'] ?? '',
-        'homeroom': data['homeroom'], // Firestore DocumentReference or null
-      };
-    }).toList();
+  /// Fetches all campuses
+  Future<List<Map<String, dynamic>>> fetchCampuses() async {
+    final snapshot = await _db.collection('campuses').get();
+    return snapshot.docs
+        .map((doc) => {'id': doc.id, ...((doc.data() as Map<String, dynamic>?) ?? {})})
+        .toList();
   }
 
-  /// Fetch homeroom names for given homeroom references
-  Future<Map<String, String>> fetchHomeroomNames(Set<String> homeroomIds) async {
-    if (homeroomIds.isEmpty) return {};
-
-    final Map<String, String> homeroomNames = {};
-    final batchSize = 10;
-    final homeroomIdList = homeroomIds.toList();
-
-    for (var i = 0; i < homeroomIdList.length; i += batchSize) {
-      final batch = homeroomIdList.sublist(
-          i, i + batchSize > homeroomIdList.length ? homeroomIdList.length : i + batchSize);
-      final snapshot = await _firestore
-          .collection('homerooms')
-          .where(FieldPath.documentId, whereIn: batch)
-          .get();
-
-      for (final doc in snapshot.docs) {
-        homeroomNames[doc.id] = doc.data()['name'] ?? '';
-      }
-    }
-    return homeroomNames;
+  /// Fetches all homerooms for a campus
+  Future<List<Map<String, dynamic>>> fetchHomerooms({required String campusId}) async {
+    final campusRef = _db.collection('campuses').doc(campusId);
+    final snapshot = await _db
+        .collection('homerooms')
+        .where('campusId', isEqualTo: campusRef)
+        .get();
+    return snapshot.docs
+        .map((doc) => {'id': doc.id, ...((doc.data() as Map<String, dynamic>?) ?? {})})
+        .toList();
   }
 
-  /// Fetch attendance records for all students within date range
-  /// Returns map: studentRefId -> list of absence dates (sorted)
-  Future<Map<String, List<DateTime>>> fetchAbsenceDatesPerStudent({
-    required DateTime startDate,
-    required DateTime endDate,
-  }) async {
-    final startTimestamp = Timestamp.fromDate(DateTime(startDate.year, startDate.month, startDate.day));
-    final endTimestamp = Timestamp.fromDate(DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59));
+  /// Returns the first day of the current week (Monday)
+  DateTime getFirstDayOfWeek() {
+    final now = DateTime.now();
+    return now.subtract(Duration(days: now.weekday - 1));
+  }
 
-    final snapshot = await _firestore
+  /// Fetches all attendances for a campus from the start of the week to today,
+  /// and returns a list of students with non-"Asiste" attendance records,
+  /// grouped by student and attendance type.
+  Future<List<Map<String, dynamic>>> fetchPatternSummaryForCampus(String campusId) async {
+    final DateTime weekStart = getFirstDayOfWeek();
+    final DateTime today = DateTime.now();
+
+    // Get all homerooms for this campus
+    final homerooms = await fetchHomerooms(campusId: campusId);
+    final homeroomIds = homerooms.map((h) => h['id'] as String).toList();
+
+    // Query attendances by date and homeroom
+    final snapshot = await _db
         .collection('attendances')
-        .where('date', isGreaterThanOrEqualTo: startTimestamp)
-        .where('date', isLessThanOrEqualTo: endTimestamp)
+        .where('campusId', isEqualTo: campusId)
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart))
+        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(today))
         .get();
 
-    final Map<String, List<DateTime>> absenceDates = {};
+    // Map: studentId -> { name, homeroomName, Map<label, count> }
+    final Map<String, Map<String, dynamic>> studentPatterns = {};
 
     for (final doc in snapshot.docs) {
-      final data = doc.data();
+      final data = doc.data() as Map<String, dynamic>;
+      final homeroomId = data['homeroomId'];
+      if (!homeroomIds.contains(homeroomId)) continue;
 
-      final attendanceRecordsDynamic = data['attendanceRecords'];
-      if (attendanceRecordsDynamic == null || attendanceRecordsDynamic is! Map<String, dynamic>) {
-        continue;
-      }
-      final attendanceRecords = Map<String, dynamic>.from(attendanceRecordsDynamic);
+      final attendanceRecords = data['attendanceRecords'] as Map<String, dynamic>? ?? {};
+      attendanceRecords.forEach((studentId, record) {
+        final label = record['label'];
+        if (label == 'A') return; // Only interested in non-Asiste
+        final studentName = record['studentName'] ?? '';
+        final homeroomName = data['homeroomName'] ?? '';
 
-      final dateTimestamp = data['date'] as Timestamp?;
-      if (dateTimestamp == null) continue;
-      final date = dateTimestamp.toDate();
-
-      for (final entry in attendanceRecords.entries) {
-        final studentRefId = entry.key;
-
-        final studentAttendance = entry.value;
-        if (studentAttendance is! Map<String, dynamic>) continue;
-
-        final label = (studentAttendance['label'] ?? '').toString();
-        // Consider these labels as absences for pattern detection
-        if (label == 'I' || label == 'IJ' || label == 'E') {
-          absenceDates.putIfAbsent(studentRefId, () => []);
-          absenceDates[studentRefId]!.add(date);
-        }
-      }
+        studentPatterns.putIfAbsent(studentId, () => {
+          'studentId': studentId,
+          'studentName': studentName,
+          'homeroomName': homeroomName,
+          'patterns': <String, int>{},
+        });
+        final patterns = studentPatterns[studentId]!['patterns'] as Map<String, int>;
+        patterns[label] = (patterns[label] ?? 0) + 1;
+      });
     }
 
-    // Sort dates for each student
-    for (final dates in absenceDates.values) {
-      dates.sort();
-    }
-
-    return absenceDates;
-  }
-
-  /// Detect continuous absence streaks and high absence counts
-  /// Returns map studentRefId -> { 'name': studentName, 'homeroomId': ..., 'homeroomName': ..., 'maxStreak': int, 'totalAbsences': int }
-  Map<String, Map<String, dynamic>> analyzeAbsencePatterns(
-      Map<String, List<DateTime>> absenceDates,
-      Map<String, Map<String, dynamic>> studentsMap,
-      Map<String, String> homeroomNames,
-      ) {
-    final Map<String, Map<String, dynamic>> result = {};
-
-    for (final entry in absenceDates.entries) {
-      final studentId = entry.key;
-      final dates = entry.value;
-
-      int maxStreak = 0;
-      int currentStreak = 1;
-
-      for (int i = 1; i < dates.length; i++) {
-        final diff = dates[i].difference(dates[i - 1]).inDays;
-        if (diff == 1) {
-          currentStreak++;
-        } else {
-          if (currentStreak > maxStreak) maxStreak = currentStreak;
-          currentStreak = 1;
-        }
-      }
-      if (currentStreak > maxStreak) maxStreak = currentStreak;
-
-      final totalAbsences = dates.length;
-      final studentData = studentsMap[studentId];
-      final studentName = studentData?['name'] ?? 'Desconocido';
-      final homeroomRef = studentData?['homeroom'];
-      String homeroomId = '';
-      String homeroomName = '';
-      if (homeroomRef != null && homeroomRef is DocumentReference<dynamic>) {
-        homeroomId = homeroomRef.id;
-        homeroomName = homeroomNames[homeroomId] ?? '';
-      }
-
-      result[studentId] = {
-        'name': studentName,
-        'homeroomId': homeroomId,
-        'homeroomName': homeroomName,
-        'maxStreak': maxStreak,
-        'totalAbsences': totalAbsences,
-      };
-    }
-
+    // Convert to list and sort by most non-Asiste records
+    final result = studentPatterns.values.toList();
+    result.sort((a, b) {
+      final aCount = (a['patterns'] as Map<String, int>).values.fold(0, (p, v) => p + v);
+      final bCount = (b['patterns'] as Map<String, int>).values.fold(0, (p, v) => p + v);
+      return bCount.compareTo(aCount);
+    });
     return result;
   }
 }
