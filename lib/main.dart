@@ -10,6 +10,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 // Import the generated Firebase options for our specific platform (Android/iOS)
 import 'firebase_options.dart';
 
+// Import your notification service
+import 'services/notification_service.dart';
+
 // Import screens
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -62,6 +65,9 @@ import 'screens/reports/teacher_schedule_screen.dart';
 // Import the outstanding attendance report screen
 import 'screens/reports/outstanding_attendance_screen.dart';
 
+// Import the config screen
+import 'screens/config_screen.dart';
+
 // The entry point of the application — must be `main()` in Dart
 void main() async {
   // Ensures that Flutter is fully initialized before we use platform channels or Firebase
@@ -69,6 +75,12 @@ void main() async {
 
   // Initialize Firebase with the configuration defined in firebase_options.dart
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize notifications (channels, permissions, etc.)
+  await NotificationService().init();
+
+  // Optionally, schedule reminders here if you want them to always be set at startup
+  // await NotificationService().scheduleReminders();
 
   // Run the root of the app
   runApp(const MyApp());
@@ -138,6 +150,8 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => OutstandingAttendanceScreen());
           case '/credits':
             return MaterialPageRoute(builder: (_) => CreditsScreen());
+          case '/config':
+            return MaterialPageRoute(builder: (_) => ConfigScreen());
           case '/educationalLevel':
             final campus = settings.arguments as Map<String, dynamic>;
             return MaterialPageRoute(
