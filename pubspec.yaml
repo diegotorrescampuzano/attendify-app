@@ -45,6 +45,7 @@ dependencies:
   package_info_plus: ^8.0.0
   flutter_local_notifications: ^18.0.1
   timezone: ^0.9.2
+  flutter_timezone: ^4.1.1
   shared_preferences: ^2.3.0
 
 dev_dependencies:

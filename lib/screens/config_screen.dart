@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/app_drawer.dart';
-import '../services/notification_service.dart'; // Asegúrate de tener este servicio implementado
+import '../services/notification_service.dart';
 
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
@@ -13,23 +14,43 @@ class _ConfigScreenState extends State<ConfigScreen> {
   static const Color backgroundColor = Color(0xFFF0F0E3);
   static const Color primaryColor = Color(0xFF53A09D);
 
-  bool _notificationsEnabled = true; // Puedes cargar este valor de preferencias
+  bool _notificationsEnabled = true;
+  bool _everyMinute = false;
 
   @override
   void initState() {
     super.initState();
-    // Aquí podrías cargar el valor real desde SharedPreferences o Firestore
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+      _everyMinute = prefs.getBool('notify_every_minute') ?? false;
+    });
   }
 
   void _toggleNotifications(bool value) async {
     setState(() {
       _notificationsEnabled = value;
     });
-    // Aquí puedes guardar el valor en preferencias y programar/cancelar notificaciones
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notifications_enabled', value);
     if (value) {
       await NotificationService().scheduleReminders();
     } else {
       await NotificationService().cancelAllNotifications();
+    }
+  }
+
+  void _toggleEveryMinute(bool value) async {
+    setState(() {
+      _everyMinute = value;
+    });
+    await NotificationService().setEveryMinutePreference(value);
+    if (_notificationsEnabled) {
+      await NotificationService().scheduleReminders();
     }
   }
 
@@ -75,6 +96,21 @@ class _ConfigScreenState extends State<ConfigScreen> {
                 value: _notificationsEnabled,
                 activeColor: primaryColor,
                 onChanged: _toggleNotifications,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: SwitchListTile(
+                title: const Text(
+                  'Notificar cada minuto',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                ),
+                subtitle: const Text('Activa para pruebas: recibirás una notificación cada minuto en la hora actual.'),
+                value: _everyMinute,
+                activeColor: primaryColor,
+                onChanged: _toggleEveryMinute,
               ),
             ),
             const SizedBox(height: 32),
