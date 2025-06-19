@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 // Add these imports for direct navigation
 import '../screens/report_screen.dart';
 import '../screens/campus_screen.dart';
+import '../screens/config_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -96,6 +97,17 @@ class AppDrawer extends StatelessWidget {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/profile');
                   print('[AppDrawer] Navigated to Mi Perfil');
+                },
+              ),
+
+              // Config menu option
+              ListTile(
+                leading: const Icon(Icons.settings, color: Color(0xFF53a09d)),
+                title: const Text('Configuración'),
+                onTap: () {
+                  Navigator.pop(context); // Close the drawer
+                  Navigator.pushNamed(context, '/config');
+                  print('[AppDrawer] Navigated to Configuración');
                 },
               ),
 
