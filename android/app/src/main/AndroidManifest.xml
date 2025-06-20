@@ -1,19 +1,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Permission to post notifications (Android 13+) -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- Permission to schedule exact alarms (Android 12+) -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-
-    <!-- Permission to receive boot completed event (for rescheduling alarms after reboot) -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
-    <!-- Allow vibration for notifications -->
-    <uses-permission android:name="android.permission.VIBRATE" />
-
-    <!-- Allow access to notification policy (for Do Not Disturb) -->
-    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
-
     <application
         android:label="attendify"
         android:name="${applicationName}"
