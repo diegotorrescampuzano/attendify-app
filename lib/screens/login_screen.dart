@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/license_service.dart'; // Add this import
 
 const Color primaryColor = Color(0xFF53A09D);
 const Color secondaryColor = Color(0xFF607D8B);
@@ -23,12 +23,35 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
   bool _isButtonEnabled = false;
   bool _obscurePassword = true;
+  bool _licenseValid = true; // Default to true to avoid blocking login while checking
+  bool _licenseChecked = false; // Track if license check is complete
 
   @override
   void initState() {
     super.initState();
     _emailController.addListener(_validateForm);
     _passwordController.addListener(_validateForm);
+    _checkLicenseValidity(); // Check license status on init
+  }
+
+  Future<void> _checkLicenseValidity() async {
+    try {
+      final isValid = await LicenseService.isLicenseValid();
+      if (mounted) {
+        setState(() {
+          _licenseValid = isValid;
+          _licenseChecked = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _licenseValid = true; // Fallback to allow login
+          _licenseChecked = true;
+        });
+      }
+      print('Error checking license: $e');
+    }
   }
 
   @override
@@ -80,6 +103,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Disable button if license is invalid or not checked yet
+    final isLoginDisabled = !_licenseValid || !_licenseChecked || !_isButtonEnabled || _loading;
+
     return Scaffold(
       backgroundColor: secondaryColor,
       body: Center(
@@ -123,6 +149,28 @@ class _LoginScreenState extends State<LoginScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 28),
+
+                // Show license warning if invalid
+                if (!_licenseValid) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red),
+                    ),
+                    child: const Text(
+                      'La licencia ha expirado o está inactiva. Contacte al administrador.',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 if (_error != null) ...[
                   Text(
                     _error!,
@@ -131,6 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
+
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -178,9 +227,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _isButtonEnabled && !_loading ? _login : null,
+                    onPressed: isLoginDisabled ? null : _login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _isButtonEnabled ? primaryColor : Colors.grey.shade400,
+                      backgroundColor: isLoginDisabled ? Colors.grey.shade400 : primaryColor,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 6,
                       shadowColor: primaryColor.withOpacity(0.5),
