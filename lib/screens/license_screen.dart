@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/license_service.dart';
 
 class LicenseScreen extends StatefulWidget {
@@ -13,6 +14,9 @@ class _LicenseScreenState extends State<LicenseScreen> {
   Map<String, dynamic>? _license;
   bool _loading = true;
   String _version = '';
+  bool _isCheckingUpdate = false;
+  String? _updateMessage;
+  bool _hasUpdate = false;
 
   @override
   void initState() {
@@ -36,6 +40,56 @@ class _LicenseScreenState extends State<LicenseScreen> {
       _version = '${info.version}+${info.buildNumber}';
     });
     print('[LicenseScreen] App version: $_version');
+  }
+
+  Future<void> _checkForUpdates() async {
+    setState(() {
+      _isCheckingUpdate = true;
+      _updateMessage = null;
+      _hasUpdate = false;
+    });
+    try {
+      final latestVersion = await LicenseService.getLatestVersion();
+      if (latestVersion != null) {
+        // Compare versions (simple string comparison for this example)
+        if (latestVersion != _version) {
+          setState(() {
+            _updateMessage = '¡Nueva versión disponible: $latestVersion!';
+            _hasUpdate = true;
+          });
+        } else {
+          setState(() {
+            _updateMessage = 'Tienes la última versión de la aplicación.';
+          });
+        }
+      } else {
+        setState(() {
+          _updateMessage = 'No se pudo obtener la última versión.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _updateMessage = 'Error al verificar actualizaciones: $e';
+      });
+    } finally {
+      setState(() {
+        _isCheckingUpdate = false;
+      });
+    }
+  }
+
+  Future<void> _launchUpdateUrl() async {
+    const url = 'https://drive.google.com/drive/folders/1peg7agwBDCp_dDIkmWVHPkNURunmzEq7?usp=sharing';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el enlace de descarga.')),
+      );
+    }
   }
 
   @override
@@ -116,10 +170,12 @@ class _LicenseScreenState extends State<LicenseScreen> {
                       const SizedBox(height: 12),
                       Builder(
                         builder: (context) {
-                          final expiryDate = _license!['expiryDate'].toDate();
+                          final expiryDate =
+                          _license!['expiryDate'].toDate();
                           final now = DateTime.now();
                           final daysLeft = expiryDate
-                              .difference(DateTime(now.year, now.month, now.day))
+                              .difference(
+                              DateTime(now.year, now.month, now.day))
                               .inDays;
                           return Row(
                             children: [
@@ -182,7 +238,8 @@ class _LicenseScreenState extends State<LicenseScreen> {
                     FutureBuilder<bool>(
                       future: LicenseService.isLicenseAboutToExpire(),
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return const SizedBox.shrink();
                         }
                         if (snapshot.hasData && snapshot.data == true) {
@@ -235,6 +292,57 @@ class _LicenseScreenState extends State<LicenseScreen> {
                 ),
               ),
             ),
+            // --- NEW UPDATE CHECK FEATURE STARTS HERE ---
+            const SizedBox(height: 24),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    ElevatedButton(
+                      onPressed: _isCheckingUpdate ? null : _checkForUpdates,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF53A09D),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 48),
+                      ),
+                      child: _isCheckingUpdate
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('Verificar actualizaciones'),
+                    ),
+                    if (_updateMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          _updateMessage!,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _hasUpdate ? Colors.green : Colors.black54,
+                          ),
+                        ),
+                      ),
+                    if (_hasUpdate)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: ElevatedButton(
+                          onPressed: _launchUpdateUrl,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 48),
+                          ),
+                          child: const Text('Descargar actualización'),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            // --- NEW UPDATE CHECK FEATURE ENDS HERE ---
           ],
         ),
       ),

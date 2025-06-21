@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/notification_service.dart';
+import '../services/firestore_service.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -36,23 +37,34 @@ class _NotificationScreenState extends State<NotificationScreen> {
     });
   }
 
-  void _testNotification() async {
+  Future<void> _testNotification() async {
     _addLog('Notificación de prueba solicitada');
     // In a real app, you would send a test notification from your backend
     // For demo, just log the token
     _addLog('FCM Token: $_fcmToken');
   }
 
-  Future<void> _copyToClipboard(String text) async {
-    if (text.isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: text));
-    _addLog('Token copiado al portapapeles');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Token copiado al portapapeles'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _saveTokenToFirestore() async {
+    if (_fcmToken == null) return;
+
+    try {
+      await FirestoreService.saveFCMToken(_fcmToken!);
+      _addLog('Token guardado en Firestore');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Token guardado exitosamente'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      _addLog('Error guardando token: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Widget _buildLogCard() {
@@ -129,7 +141,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   icon: const Icon(Icons.copy),
                   onPressed: () {
                     if (_fcmToken != null) {
-                      _copyToClipboard(_fcmToken!);
+                      Clipboard.setData(ClipboardData(text: _fcmToken!));
+                      _addLog('Token copiado al portapapeles');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Token copiado al portapapeles'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
                     }
                   },
                 ),
@@ -137,18 +156,36 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.notifications_active),
-                label: const Text('Probar notificación'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              child: Column(
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.notifications_active),
+                    label: const Text('Probar notificación'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: _testNotification,
                   ),
-                ),
-                onPressed: _testNotification,
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.save),
+                    label: const Text('Guardar token FCM'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: _fcmToken == null ? null : _saveTokenToFirestore,
+                  ),
+                ],
               ),
             ),
             _buildLogCard(),

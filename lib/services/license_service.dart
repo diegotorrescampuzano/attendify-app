@@ -6,8 +6,6 @@ class LicenseService {
   /// Get the current license data for the school
   static Future<Map<String, dynamic>?> getLicense() async {
     try {
-      // You can hardcode the license ID or use a field from school/user
-      // For this example, we use 'school_001' as the license ID
       final doc = await _db.collection('licenses').doc('school_001').get();
       if (!doc.exists) {
         print('[LicenseService] No license document found.');
@@ -56,5 +54,11 @@ class LicenseService {
     final difference = expiryDate.difference(now).inDays;
     print('[LicenseService] Days until expiry: $difference');
     return difference <= warnDays && difference >= 0;
+  }
+
+  /// Get the latest version from the license document
+  static Future<String?> getLatestVersion() async {
+    final license = await getLicense();
+    return license?['version'] as String?;
   }
 }
