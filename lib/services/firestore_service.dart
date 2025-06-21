@@ -24,4 +24,20 @@ class FirestoreService {
 
     return doc.data();
   }
+
+  /// Save FCM token to user document
+  static Future<void> saveFCMToken(String token) async {
+    final uid = AuthService.getCurrentUserId();
+    if (uid == null) return;
+
+    try {
+      await _db.collection('users').doc(uid).set({
+        'fcmToken': token,
+      }, SetOptions(merge: true));
+      print('FCM token saved successfully');
+    } catch (e) {
+      print('Error saving FCM token: $e');
+      rethrow;
+    }
+  }
 }
