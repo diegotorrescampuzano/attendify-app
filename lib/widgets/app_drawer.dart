@@ -88,6 +88,17 @@ class AppDrawer extends StatelessWidget {
                 },
               ),
 
+              // Notificaciones
+              ListTile(
+                leading: const Icon(Icons.notifications, color: Color(0xFF53a09d)),
+                title: const Text('Notificaciones'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/notifications');
+                  print('[AppDrawer] Navigated to Notificaciones');
+                },
+              ),
+
               // Profile menu option
               ListTile(
                 leading: const Icon(Icons.person, color: Color(0xFF53a09d)),

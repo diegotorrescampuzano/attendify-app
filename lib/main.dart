@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 // Import Firebase core so we can initialize it
 import 'package:firebase_core/firebase_core.dart';
 
+// Import Firebase Messaging for push notifications
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 // Import flutter_localizations for localization support
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -62,6 +65,29 @@ import 'screens/reports/teacher_schedule_screen.dart';
 // Import the outstanding attendance report screen
 import 'screens/reports/outstanding_attendance_screen.dart';
 
+// Import the notification screen
+import 'screens/notification_screen.dart';
+
+// Import the notification service
+import 'services/notification_service.dart';
+
+// Background message handler (must be top-level)
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint('Handling a background message: ${message.messageId}');
+  debugPrint('Message data: ${message.data}');
+  debugPrint('Message notification: ${message.notification?.title}');
+  // Show the notification using NotificationService
+  final notificationService = NotificationService();
+  if (message.notification != null) {
+    await notificationService.showLocalNotification(
+      title: message.notification?.title ?? 'Recordatorio',
+      body: message.notification?.body ?? 'Mensaje de recordatorio',
+    );
+  }
+}
+
 // The entry point of the application — must be `main()` in Dart
 void main() async {
   // Ensures that Flutter is fully initialized before we use platform channels or Firebase
@@ -69,6 +95,9 @@ void main() async {
 
   // Initialize Firebase with the configuration defined in firebase_options.dart
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Set up background message handler
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Run the root of the app
   runApp(const MyApp());
@@ -138,6 +167,8 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => OutstandingAttendanceScreen());
           case '/credits':
             return MaterialPageRoute(builder: (_) => CreditsScreen());
+          case '/notifications':  // Add route for new notification screen
+            return MaterialPageRoute(builder: (_) => const NotificationScreen());
           case '/educationalLevel':
             final campus = settings.arguments as Map<String, dynamic>;
             return MaterialPageRoute(
