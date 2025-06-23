@@ -19,14 +19,14 @@ const Map<String, String> daysEs = {
   'sunday': 'Domingo',
 };
 const List<String> slotTimes = [
-  '07:00-08:00',
-  '08:00-09:00',
-  '09:00-10:00',
-  '10:00-11:00',
-  '11:00-12:00',
-  '12:00-13:00',
-  '13:00-14:00',
-  '14:00-15:00',
+  'Session 1',
+  'Session 2',
+  'Session 3',
+  'Session 4',
+  'Session 5',
+  'Session 6',
+  'Session 7',
+  'Session 8',
 ];
 
 class OutstandingAttendanceScreen extends StatefulWidget {
