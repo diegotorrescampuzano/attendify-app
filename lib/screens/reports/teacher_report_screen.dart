@@ -9,47 +9,48 @@ class TeacherReportScreen extends StatelessWidget {
   static const Color primaryColor = Color(0xFF53A09D);
 
   static final List<ReportCardData> _reports = [
-    ReportCardData(
-      title: 'Resumen Fuera de Horario',
-      description: 'Resumen semanal de asistencias registradas fuera/dentro del horario',
-      icon: FontAwesomeIcons.clock,
-      routeName: '/offtheclockSummary',
-    ),
-    ReportCardData(
-      title: 'Registros Pendientes',
-      description: 'Registros de asistencia pendientes por docentes',
-      icon: FontAwesomeIcons.clipboardList,
-      routeName: '/outstandingRegister',
-    ),
-    ReportCardData(
-      title: 'Horario de Docentes',
-      description: 'Horarios semanales por campus',
-      icon: FontAwesomeIcons.calendarAlt,
-      routeName: '/scheduleSummary',
-    ),
+
     ReportCardData(
       title: 'Horario por Docente',
-      description: 'Horario semanal individual',
+      description: 'Horario semanal individual en formato vertical',
       icon: FontAwesomeIcons.calendarAlt,
       routeName: '/teacherSchedule',
     ),
     ReportCardData(
-      title: 'Asistencias Pendientes',
-      description: 'Clases con asistencia pendiente (semana actual)',
-      icon: FontAwesomeIcons.exclamationCircle,
-      routeName: '/outstandingCurrentWeek',
+      title: 'Horario de Docentes',
+      description: 'Horarios semanales de uno o varios profesores en formato horizontal',
+      icon: FontAwesomeIcons.calendarAlt,
+      routeName: '/scheduleSummary',
     ),
     ReportCardData(
       title: 'Asistencias Pendientes (Docente)',
-      description: 'Asistencia pendiente para docente específico',
+      description: 'Asistencia pendiente para docente específico (semana actual) en formato vertical',
       icon: FontAwesomeIcons.exclamationCircle,
       routeName: '/outstandingAttendance',
+    ),
+    ReportCardData(
+      title: 'Asistencias Pendientes',
+      description: 'Clases con asistencia pendiente (semana actual) en formato horizontal',
+      icon: FontAwesomeIcons.exclamationCircle,
+      routeName: '/outstandingCurrentWeek',
     ),
     ReportCardData(
       title: 'Resumen por Docente',
       description: 'Asistencias registradas por docente',
       icon: FontAwesomeIcons.userTie,
       routeName: '/teacherSummary',
+    ),
+    ReportCardData(
+      title: 'Resumen Fuera de Horario (Semana Actual)',
+      description: 'Resumen semanal de asistencias registradas fuera/dentro del horario',
+      icon: FontAwesomeIcons.clock,
+      routeName: '/offtheclockSummary',
+    ),
+    ReportCardData(
+      title: 'Registros Pendientes (Listado)',
+      description: 'Registros de asistencia pendientes por docentes',
+      icon: FontAwesomeIcons.clipboardList,
+      routeName: '/outstandingRegister',
     ),
   ];
 
