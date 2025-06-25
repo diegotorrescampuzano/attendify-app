@@ -55,7 +55,7 @@ class AppDrawer extends StatelessWidget {
                 title: const Text('Mis Horarios'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.pushNamed(context, '/scheduleSummary');
+                  Navigator.pushNamed(context, '/teacherSchedule');
                   print('[AppDrawer] Navigated to Mis Horarios');
                 },
               ),

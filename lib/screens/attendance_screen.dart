@@ -49,7 +49,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   final AttendanceService _attendanceService = AttendanceService();
 
-  // Utility to get the day of the week as a string
   String getDayOfWeek(DateTime date) {
     const days = [
       'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
@@ -123,24 +122,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> _loadExistingAttendance() async {
     final docRef = FirebaseFirestore.instance.collection('attendances').doc(_docId);
     final doc = await docRef.get();
-
     final students = await _studentsFuture;
 
     if (!doc.exists) {
-      // Determine default label for all students
       final defaultLabel = students.length > 10 ? 'A' : 'I';
-
-      // Initialize attendance map with default labels
       final Map<String, String> initialAttendanceMap = {
         for (var student in students) student['id'] ?? student['ref']?.id ?? '': defaultLabel,
       };
-
-      // Initialize notes map with "registro creado por defecto"
       final Map<String, String> initialNotesMap = {
         for (var student in students) student['id'] ?? student['ref']?.id ?? '': 'registro creado por defecto',
       };
-
-      // Prepare general info for saving
       final generalInfo = {
         'campusId': widget.campus['id'],
         'campusName': widget.campus['name'],
@@ -155,8 +146,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         'slot': widget.slot,
         'day': getDayOfWeek(widget.selectedDate),
       };
-
-      // Save the initial attendance record with defaults and notes
       await _attendanceService.saveFullAttendance(
         docId: _docId,
         generalInfo: generalInfo,
@@ -168,26 +157,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         teacherName: _teacherName ?? '',
         students: students,
       );
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Se ha creado por defecto el registro de asistencia')),
         );
       }
-
-      // Update the UI state with the initialized attendance and notes
       setState(() {
         _attendanceMap = initialAttendanceMap;
         _attendanceNotes = initialNotesMap;
       });
     } else {
-      // Existing document logic (unchanged)
       final data = doc.data()!;
       final attendanceRecords = data['attendanceRecords'] as Map<String, dynamic>? ?? {};
-
       final Map<String, String> loadedAttendanceMap = {};
       final Map<String, String> loadedNotesMap = {};
-
       for (var student in students) {
         final studentId = student['id'] ?? student['ref']?.id ?? '';
         if (attendanceRecords.containsKey(studentId)) {
@@ -198,7 +181,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           loadedNotesMap[studentId] = '';
         }
       }
-
       setState(() {
         _attendanceMap = loadedAttendanceMap;
         _attendanceNotes = loadedNotesMap;
@@ -216,7 +198,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() {
       _loadingSave = true;
     });
-
     final generalInfo = {
       'campusId': widget.campus['id'],
       'campusName': widget.campus['name'],
@@ -231,10 +212,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       'slot': widget.slot,
       'day': getDayOfWeek(widget.selectedDate),
     };
-
-    // Ensure students list is loaded before saving
     final students = _students.isNotEmpty ? _students : await _studentsFuture;
-
     try {
       await _attendanceService.saveFullAttendance(
         docId: _docId,
@@ -274,7 +252,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> _editNoteDialog(String studentId, String studentName) async {
     String tempNote = _attendanceNotes[studentId] ?? '';
     final controller = TextEditingController(text: tempNote);
-
     final newNote = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -299,7 +276,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         );
       },
     );
-
     if (newNote != null) {
       setState(() {
         _attendanceNotes[studentId] = newNote;
@@ -339,7 +315,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Confirmar'),
-          content: const Text('¿Estás seguro de finalizar el registro?'),
+          content: const Text('¿Estás seguro de finalizar el registro?\nRecuerda guardar los cambios de asistencia antes de cerrar.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -436,7 +412,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       final currentLabel = _attendanceMap[studentId] ?? '';
                       final hasNote = (_attendanceNotes[studentId]?.isNotEmpty ?? false);
                       final phone = student['cellphoneContact'] ?? '';
-
                       return Card(
                         elevation: 2,
                         margin: const EdgeInsets.symmetric(vertical: 6),
@@ -453,6 +428,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                     child: Text(
                                       studentName,
                                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                                      maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
