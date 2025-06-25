@@ -339,7 +339,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Confirmar'),
-          content: const Text('¿Estás seguro de finalizar el registro?'),
+          content: const Text('¿Estás seguro de finalizar el registro?\nRecuerda guardar los cambios de asistencia antes de cerrar'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -453,7 +453,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                     child: Text(
                                       studentName,
                                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis, // Optional: still shows dots if it exceeds 2 lines
                                     ),
                                   ),
                                   IconButton(
