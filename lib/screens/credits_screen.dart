@@ -13,7 +13,7 @@ class CreditsScreen extends StatelessWidget {
   final String email = 'diegotorres50@gmail.com';
   final String linkedInUrl = 'https://www.linkedin.com/in/diegotorrescampuzano/';
   final String description =
-      'Soy ingeniero de software con experiencia en diseño, desarrollo backend y arquitectura de aplicaciones, apasionado por crear soluciones innovadoras como Attendify.';
+      'Soy ingeniero de software con experiencia en diseño, desarrollo backend y arquitectura de aplicaciones, apasionado por crear soluciones innovadoras como EduPilot360.';
 
   // Helper to open URLs
   Future<void> _launchURL(String url) async {

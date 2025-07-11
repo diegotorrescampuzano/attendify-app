@@ -129,12 +129,12 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Image.asset(
-                  'assets/images/attendify_logo.png',
+                  'assets/images/edupilot360_logo.png',
                   height: 100,
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'Bienvenido a Attendify',
+                  'Bienvenido a EduPilot360',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
