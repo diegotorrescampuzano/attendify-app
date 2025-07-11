@@ -67,7 +67,7 @@ void main() async {
   debugPrint('Background message handler registered.');
 
   // Start the app
-  debugPrint('Starting Attendify app...');
+  debugPrint('Starting EduPilot360 app...');
   runApp(const MyApp());
 }
 
@@ -78,7 +78,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     debugPrint('Building MyApp widget...');
     return MaterialApp(
-      title: 'Attendify -',
+      title: 'EduPilot360 -',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),

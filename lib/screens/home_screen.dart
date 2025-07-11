@@ -70,12 +70,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Image.asset(
-                      'assets/images/attendify_logo.png',
+                      'assets/images/edupilot360_logo.png',
                       height: 160,
                     ),
                     const SizedBox(height: 32),
                     const Text(
-                      '¡Bienvenido a Attendify!',
+                      '¡Bienvenido a EduPilot360!',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -126,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Attendify'),
+        title: const Text('EduPilot360'),
         backgroundColor: const Color(0xFF53A09D),
       ),
       drawer: const AppDrawer(),
